@@ -9,7 +9,7 @@
   "dependencies": {
     "express": "^4.21.2",
     "zcatalyst-sdk-node": "^1.11.0",
-    "bcryptjs": "^3.0.3 border",
+    "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.2",
     "sqlite3": "^6.0.1",
     "helmet": "^8.0.0",
