@@ -1,0 +1,6 @@
+{
+  "name": "express_app",
+  "type": "advancedIO",
+  "stack": "node18",
+  "entry": "index.js"
+}

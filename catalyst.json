@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "targets": [
+      "express_app"
+    ]
+  },
+  "hosting": {
+    "target": "client",
+    "source": "dist/public",
+    "ignore": [
+      "catalyst.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

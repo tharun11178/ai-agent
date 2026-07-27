@@ -1,0 +1,21 @@
+{
+  "name": "express_app",
+  "version": "1.0.0",
+  "description": "AI Agent Challenge Advanced I/O Express Function for Zoho Catalyst",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "zcatalyst-sdk-node": "^1.11.0",
+    "bcryptjs": "^3.0.3 border",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^6.0.1",
+    "helmet": "^8.0.0",
+    "cors": "^2.8.5",
+    "compression": "^1.8.1",
+    "express-rate-limit": "^7.5.0",
+    "nanoid": "^5.1.5"
+  }
+}

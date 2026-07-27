@@ -4,6 +4,8 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import { createExpressApp } from './app';
 
+export { createExpressApp };
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -30,10 +32,13 @@ async function startServer() {
     });
   });
 
-  const port = process.env.PORT || 3000;
-  server.listen(port, () => {
-    console.log(`🚀 Production-ready server running on http://localhost:${port}/`);
-  });
+  // Only listen if executed directly (e.g. node dist/index.js)
+  if (process.env.CATALYST_ENV === undefined) {
+    const port = process.env.PORT || 3000;
+    server.listen(port, () => {
+      console.log(`🚀 Production-ready server running on http://localhost:${port}/`);
+    });
+  }
 }
 
 startServer().catch((err) => {

@@ -101,10 +101,10 @@ export async function initDatabase(): Promise<void> {
     );
   `);
 
-  // Seed default Event Config if not present
+  const initialMaxTeams = process.env.MAX_TEAMS || '40';
   const maxTeamsConfig = await dbGet(`SELECT value FROM event_config WHERE key = 'MAX_TEAMS'`);
   if (!maxTeamsConfig) {
-    await dbRun(`INSERT INTO event_config (key, value) VALUES ('MAX_TEAMS', '40')`);
+    await dbRun(`INSERT INTO event_config (key, value) VALUES ('MAX_TEAMS', ?)`, [initialMaxTeams]);
   }
 
   const regOpenConfig = await dbGet(`SELECT value FROM event_config WHERE key = 'registrationOpen'`);
@@ -112,7 +112,8 @@ export async function initDatabase(): Promise<void> {
     await dbRun(`INSERT INTO event_config (key, value) VALUES ('registrationOpen', 'true')`);
   }
 
-  const newHash = bcrypt.hashSync('isagi1117', 10);
+  const adminPass = process.env.ADMIN_PASSWORD || 'isagi1117';
+  const newHash = bcrypt.hashSync(adminPass, 10);
   await dbRun(`INSERT OR REPLACE INTO event_config (key, value) VALUES ('adminPasswordHash', ?)`, [newHash]);
   await dbRun(`INSERT OR REPLACE INTO event_config (key, value) VALUES ('adminUsername', 'admin')`);
 
