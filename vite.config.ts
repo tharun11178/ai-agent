@@ -220,6 +220,7 @@ export default defineConfig(({ command }) => {
   }
 
   return {
+    base: "./",
     plugins,
   resolve: {
     alias: {
