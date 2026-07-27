@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build && node -e \"fs.copyFileSync('dist/public/index.html', 'dist/public/404.html')\" && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && node -e \"fs.mkdirSync('functions/express_app/dist', {recursive: true}); fs.copyFileSync('dist/index.js', 'functions/express_app/dist/index.js')\"",
+    "build": "vite build && node -e \"fs.copyFileSync('dist/public/index.html', 'dist/public/404.html')\" && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && node -e \"fs.mkdirSync('functions/express_app/dist', {recursive: true}); fs.copyFileSync('dist/index.js', 'functions/express_app/dist/index.js'); fs.cpSync('dist/public', 'functions/express_app/dist/public', {recursive: true}); fs.cpSync('dist/public', 'client/dist', {recursive: true})\"",
     "start": "NODE_ENV=production node dist/index.js",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",

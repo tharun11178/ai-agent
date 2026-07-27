@@ -1,4 +1,5 @@
 import express, { Express } from 'express';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDatabase } from './db/database';
@@ -45,6 +46,22 @@ export async function createExpressApp(): Promise<Express> {
       : path.resolve(__dirname, '..', 'dist', 'public');
 
   app.use(express.static(staticPath, { maxAge: '1d' }));
+
+  // Fallback to index.html for client-side Wouter routing
+  app.get('*', (req, res, next) => {
+    if (req.url.startsWith('/api')) {
+      return next();
+    }
+    const indexPath = path.resolve(staticPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    const rootIndexPath = path.resolve(__dirname, '..', 'dist', 'public', 'index.html');
+    if (fs.existsSync(rootIndexPath)) {
+      return res.sendFile(rootIndexPath);
+    }
+    return res.status(404).send('404 Not Found');
+  });
 
   return app;
 }
