@@ -1,0 +1,165 @@
+import sqlite3 from 'sqlite3';
+import path from 'node:path';
+import fs from 'node:fs';
+import bcrypt from 'bcryptjs';
+import { nanoid } from 'nanoid';
+
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const DB_PATH = path.join(DATA_DIR, 'challenge.db');
+
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// Enable verbose SQLite logging in non-production if needed
+const sqlite = sqlite3.verbose();
+export const db = new sqlite.Database(DB_PATH);
+
+// Helper wrappers for Async/Await database operations
+export function dbRun(sql: string, params: any[] = []): Promise<{ lastID?: number; changes?: number }> {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve({ lastID: this.lastID, changes: this.changes });
+    });
+  });
+}
+
+export function dbGet<T = any>(sql: string, params: any[] = []): Promise<T | undefined> {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row as T | undefined);
+    });
+  });
+}
+
+export function dbAll<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve((rows as T[]) || []);
+    });
+  });
+}
+
+export async function initDatabase(): Promise<void> {
+  // Create Teams Table with Indexes
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS teams (
+      id TEXT PRIMARY KEY,
+      teamName TEXT UNIQUE NOT NULL,
+      leaderName TEXT NOT NULL,
+      leaderEmail TEXT UNIQUE NOT NULL,
+      phone TEXT UNIQUE NOT NULL,
+      college TEXT NOT NULL,
+      department TEXT,
+      year TEXT,
+      member2 TEXT,
+      assignedProblemId TEXT,
+      createdAt TEXT NOT NULL
+    );
+  `);
+
+  await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_name ON teams(teamName);`);
+  await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_email ON teams(leaderEmail);`);
+  await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_phone ON teams(phone);`);
+
+  // Create Problems Table
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS problems (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      track TEXT NOT NULL,
+      description TEXT NOT NULL,
+      fileUrl TEXT,
+      fileType TEXT,
+      released INTEGER NOT NULL DEFAULT 0,
+      releasedAt TEXT,
+      createdAt TEXT NOT NULL
+    );
+  `);
+
+  // Create Activity Logs Table
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id TEXT PRIMARY KEY,
+      adminUser TEXT NOT NULL,
+      action TEXT NOT NULL,
+      details TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    );
+  `);
+
+  await dbRun(`CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_logs(createdAt);`);
+
+  // Create Event Config Table
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS event_config (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+
+  // Seed default Event Config if not present
+  const maxTeamsConfig = await dbGet(`SELECT value FROM event_config WHERE key = 'MAX_TEAMS'`);
+  if (!maxTeamsConfig) {
+    await dbRun(`INSERT INTO event_config (key, value) VALUES ('MAX_TEAMS', '40')`);
+  }
+
+  const regOpenConfig = await dbGet(`SELECT value FROM event_config WHERE key = 'registrationOpen'`);
+  if (!regOpenConfig) {
+    await dbRun(`INSERT INTO event_config (key, value) VALUES ('registrationOpen', 'true')`);
+  }
+
+  const newHash = bcrypt.hashSync('isagi1117', 10);
+  await dbRun(`INSERT OR REPLACE INTO event_config (key, value) VALUES ('adminPasswordHash', ?)`, [newHash]);
+  await dbRun(`INSERT OR REPLACE INTO event_config (key, value) VALUES ('adminUsername', 'admin')`);
+
+  // Seed default Problems if table is empty
+  const problemCount = await dbGet<{ count: number }>(`SELECT COUNT(*) as count FROM problems`);
+  if (problemCount && problemCount.count === 0) {
+    const defaultProblems = [
+      {
+        id: 'prob-1',
+        title: 'Autonomous Logistics Routing Agent',
+        track: 'AI Agents & Autonomous Systems',
+        description:
+          'Design an intelligent agent that dynamically re-routes delivery fleets in real time during supply chain disruptions.',
+      },
+      {
+        id: 'prob-2',
+        title: 'Real-Time Code Vulnerability Detection Agent',
+        track: 'Cybersecurity & Code Analysis',
+        description:
+          'Build an LLM-powered code review agent capable of catching zero-day vulnerabilities in pull requests before deployment.',
+      },
+      {
+        id: 'prob-3',
+        title: 'Multi-Agent Healthcare Triage System',
+        track: 'Healthcare AI & Automation',
+        description:
+          'Develop a multi-agent system that analyzes patient vitals, prioritizes emergency care cases, and assists medical staff.',
+      },
+    ];
+
+    for (const prob of defaultProblems) {
+      await dbRun(
+        `INSERT INTO problems (id, title, track, description, released, createdAt) VALUES (?, ?, ?, ?, 0, ?)`,
+        [prob.id, prob.title, prob.track, prob.description, new Date().toISOString()]
+      );
+    }
+  }
+}
+
+// Log activity helper
+export async function logAdminActivity(adminUser: string, action: string, details: string): Promise<void> {
+  try {
+    await dbRun(
+      `INSERT INTO activity_logs (id, adminUser, action, details, createdAt) VALUES (?, ?, ?, ?, ?)`,
+      [`log-${nanoid(10)}`, adminUser, action, details, new Date().toISOString()]
+    );
+  } catch (err) {
+    console.error('Failed to log admin activity:', err);
+  }
+}
