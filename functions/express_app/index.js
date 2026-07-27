@@ -15,6 +15,14 @@ module.exports = async (req, res) => {
     const { createExpressApp } = await import('file://' + distPath.replace(/\\/g, '/'));
     const expressApp = await createExpressApp();
 
+    // Normalize URL path for Express routing in Catalyst Advanced I/O
+    if (req.url) {
+      req.url = req.url.replace(/^\/server\/express_app/, '').replace(/^\/baas\/v1\/[^\/]+\/function\/express_app/, '') || '/';
+      if (!req.url.startsWith('/')) {
+        req.url = '/' + req.url;
+      }
+    }
+
     return expressApp(req, res);
   } catch (err) {
     console.error('Catalyst Advanced I/O Express Error:', err);

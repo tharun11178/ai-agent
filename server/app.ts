@@ -39,11 +39,18 @@ export async function createExpressApp(): Promise<Express> {
     adminRoutes(req, res, next);
   });
 
-  // Serve static files in production
-  const staticPath =
-    process.env.NODE_ENV === 'production'
-      ? path.resolve(__dirname, 'public')
-      : path.resolve(__dirname, '..', 'dist', 'public');
+  // Find valid static files directory across all possible deployment locations
+  const possibleStaticPaths = [
+    path.resolve(__dirname, 'public'),
+    path.resolve(__dirname, '..', 'dist', 'public'),
+    path.resolve(__dirname, '..', 'public'),
+    path.resolve(__dirname, '..', 'client'),
+    path.resolve(__dirname, '..', '..', 'dist', 'public'),
+    path.resolve(process.cwd(), 'dist', 'public'),
+    path.resolve(process.cwd(), 'client'),
+  ];
+
+  const staticPath = possibleStaticPaths.find(p => fs.existsSync(path.resolve(p, 'index.html'))) || possibleStaticPaths[0];
 
   app.use(express.static(staticPath, { maxAge: '1d' }));
 
@@ -52,13 +59,11 @@ export async function createExpressApp(): Promise<Express> {
     if (req.url.startsWith('/api')) {
       return next();
     }
-    const indexPath = path.resolve(staticPath, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      return res.sendFile(indexPath);
-    }
-    const rootIndexPath = path.resolve(__dirname, '..', 'dist', 'public', 'index.html');
-    if (fs.existsSync(rootIndexPath)) {
-      return res.sendFile(rootIndexPath);
+    for (const p of possibleStaticPaths) {
+      const candidate = path.resolve(p, 'index.html');
+      if (fs.existsSync(candidate)) {
+        return res.sendFile(candidate);
+      }
     }
     return res.status(404).send('404 Not Found');
   });
