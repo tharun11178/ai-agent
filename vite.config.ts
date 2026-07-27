@@ -206,10 +206,21 @@ function vitePluginExpressBackend(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy(), vitePluginExpressBackend()];
+export default defineConfig(({ command }) => {
+  const plugins: Plugin[] = [
+    react(),
+    tailwindcss(),
+    vitePluginManusRuntime(),
+    vitePluginManusDebugCollector(),
+    vitePluginStorageProxy(),
+  ];
 
-export default defineConfig({
-  plugins,
+  if (command === "serve") {
+    plugins.push(vitePluginExpressBackend());
+  }
+
+  return {
+    plugins,
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
@@ -241,4 +252,5 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
+};
 });
