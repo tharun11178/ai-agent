@@ -26,8 +26,14 @@ export default function Register() {
     member2: '',
   });
 
-  const [regStatus, setRegStatus] = useState<RegStatus | null>(null);
-  const [loadingStatus, setLoadingStatus] = useState(true);
+  const [regStatus, setRegStatus] = useState<RegStatus | null>({
+    open: true,
+    isFull: false,
+    maxTeams: 40,
+    registeredTeams: 0,
+    availableSlots: 40,
+  });
+  const [loadingStatus, setLoadingStatus] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -187,8 +193,7 @@ export default function Register() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-8"
         >
           <motion.div variants={itemVariants} className="max-w-3xl">
@@ -216,8 +221,7 @@ export default function Register() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container max-w-2xl"
         >
           {loadingStatus ? (
