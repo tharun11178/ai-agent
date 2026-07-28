@@ -44,9 +44,11 @@ export async function createExpressApp(): Promise<Express> {
     path.resolve(__dirname, 'public'),
     path.resolve(__dirname, '..', 'dist', 'public'),
     path.resolve(__dirname, '..', 'public'),
+    path.resolve(__dirname, '..', 'client', 'public'),
     path.resolve(__dirname, '..', 'client'),
     path.resolve(__dirname, '..', '..', 'dist', 'public'),
     path.resolve(process.cwd(), 'dist', 'public'),
+    path.resolve(process.cwd(), 'client', 'public'),
     path.resolve(process.cwd(), 'client'),
   ];
 
