@@ -34,9 +34,9 @@ async function startServer() {
 
   // Only listen if executed directly (e.g. node dist/index.js)
   if (process.env.CATALYST_ENV === undefined) {
-    const port = process.env.PORT || 3000;
-    server.listen(port, () => {
-      console.log(`🚀 Production-ready server running on http://localhost:${port}/`);
+    const port = Number(process.env.PORT) || 3000;
+    server.listen(port, '0.0.0.0', () => {
+      console.log(`🚀 Production-ready server running on port ${port}`);
     });
   }
 }
