@@ -19,9 +19,34 @@ export interface AdminUser {
   role: "admin" | "judge";
 }
 
-const DATA_DIR = path.resolve(process.cwd(), "data");
-const SESSIONS_FILE = path.join(DATA_DIR, "admin-sessions.json");
-const PROBLEMS_FILE = path.join(DATA_DIR, "problems.json");
+import os from "node:os";
+
+function getWritableDataDir(): string {
+  try {
+    const cwdData = path.resolve(process.cwd(), "data");
+    if (!fs.existsSync(cwdData)) {
+      fs.mkdirSync(cwdData, { recursive: true });
+    }
+    const testFile = path.join(cwdData, ".write-test");
+    fs.writeFileSync(testFile, "ok");
+    fs.unlinkSync(testFile);
+    return cwdData;
+  } catch {
+    const tmpData = path.join(os.tmpdir(), "ai-agent-data");
+    if (!fs.existsSync(tmpData)) {
+      fs.mkdirSync(tmpData, { recursive: true });
+    }
+    return tmpData;
+  }
+}
+
+function getSessionsFile(): string {
+  return path.join(getWritableDataDir(), "admin-sessions.json");
+}
+
+function getProblemsFile(): string {
+  return path.join(getWritableDataDir(), "problems.json");
+}
 
 // Default Admin Credentials
 const ADMIN_CREDENTIALS = {
@@ -31,13 +56,13 @@ const ADMIN_CREDENTIALS = {
 };
 
 function ensureAdminDataExists(): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  const sessionsFile = getSessionsFile();
+  const problemsFile = getProblemsFile();
+
+  if (!fs.existsSync(sessionsFile)) {
+    fs.writeFileSync(sessionsFile, JSON.stringify([], null, 2), "utf-8");
   }
-  if (!fs.existsSync(SESSIONS_FILE)) {
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify([], null, 2), "utf-8");
-  }
-  if (!fs.existsSync(PROBLEMS_FILE)) {
+  if (!fs.existsSync(problemsFile)) {
     const defaultProblems: ProblemStatement[] = [
       {
         id: "prob-1",
@@ -56,14 +81,14 @@ function ensureAdminDataExists(): void {
         createdAt: new Date().toISOString(),
       },
     ];
-    fs.writeFileSync(PROBLEMS_FILE, JSON.stringify(defaultProblems, null, 2), "utf-8");
+    fs.writeFileSync(problemsFile, JSON.stringify(defaultProblems, null, 2), "utf-8");
   }
 }
 
 function getSessions(): string[] {
   ensureAdminDataExists();
   try {
-    const raw = fs.readFileSync(SESSIONS_FILE, "utf-8");
+    const raw = fs.readFileSync(getSessionsFile(), "utf-8");
     return JSON.parse(raw) as string[];
   } catch {
     return [];
@@ -72,7 +97,7 @@ function getSessions(): string[] {
 
 function saveSessions(sessions: string[]): void {
   ensureAdminDataExists();
-  fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), "utf-8");
+  fs.writeFileSync(getSessionsFile(), JSON.stringify(sessions, null, 2), "utf-8");
 }
 
 export function adminLogin(
@@ -119,7 +144,7 @@ export function getProblemsStore(token?: string): ProblemStatement[] {
   }
   ensureAdminDataExists();
   try {
-    const raw = fs.readFileSync(PROBLEMS_FILE, "utf-8");
+    const raw = fs.readFileSync(getProblemsFile(), "utf-8");
     return JSON.parse(raw) as ProblemStatement[];
   } catch {
     return [];
@@ -146,7 +171,7 @@ export function createProblemStore(
   };
 
   problems.push(newProblem);
-  fs.writeFileSync(PROBLEMS_FILE, JSON.stringify(problems, null, 2), "utf-8");
+  fs.writeFileSync(getProblemsFile(), JSON.stringify(problems, null, 2), "utf-8");
   return newProblem;
 }
 
@@ -158,7 +183,7 @@ export function toggleReleaseProblemsStore(token: string, released: boolean): { 
 
   const problems = getProblemsStore(token);
   const updated = problems.map((p) => ({ ...p, released }));
-  fs.writeFileSync(PROBLEMS_FILE, JSON.stringify(updated, null, 2), "utf-8");
+  fs.writeFileSync(getProblemsFile(), JSON.stringify(updated, null, 2), "utf-8");
   return { released };
 }
 
@@ -189,7 +214,7 @@ export function getAdminAnalyticsStore(token: string) {
 export function getPublicProblemStatements(): { released: boolean; problems?: ProblemStatement[]; message?: string } {
   ensureAdminDataExists();
   try {
-    const raw = fs.readFileSync(PROBLEMS_FILE, "utf-8");
+    const raw = fs.readFileSync(getProblemsFile(), "utf-8");
     const problems = JSON.parse(raw) as ProblemStatement[];
     const isReleased = problems.some((p) => p.released);
 

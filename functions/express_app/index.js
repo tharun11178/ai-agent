@@ -1,19 +1,22 @@
 const path = require('path');
 const catalyst = require('zcatalyst-sdk-node');
 
+let cachedApp = null;
+
 module.exports = async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
     req.catalystApp = catalystApp;
 
-    // Load compiled Express application (check function-local dist first, fallback to root dist)
-    const fs = require('fs');
-    let distPath = path.resolve(__dirname, './dist/index.js');
-    if (!fs.existsSync(distPath)) {
-      distPath = path.resolve(__dirname, '../../dist/index.js');
+    if (!cachedApp) {
+      const fs = require('fs');
+      let distPath = path.resolve(__dirname, './dist/index.js');
+      if (!fs.existsSync(distPath)) {
+        distPath = path.resolve(__dirname, '../../dist/index.js');
+      }
+      const { createExpressApp } = await import('file://' + distPath.replace(/\\/g, '/'));
+      cachedApp = await createExpressApp();
     }
-    const { createExpressApp } = await import('file://' + distPath.replace(/\\/g, '/'));
-    const expressApp = await createExpressApp();
 
     // Normalize URL path for Express routing in Catalyst Advanced I/O
     if (req.url) {
@@ -23,7 +26,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    return expressApp(req, res);
+    return cachedApp(req, res);
   } catch (err) {
     console.error('Catalyst Advanced I/O Express Error:', err);
     res.writeHead(500, { 'Content-Type': 'application/json' });

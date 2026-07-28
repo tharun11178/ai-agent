@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { nanoid } from "nanoid";
 
 export interface Registration {
@@ -15,22 +16,41 @@ export interface Registration {
   createdAt: string;
 }
 
-const DATA_DIR = path.resolve(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "registrations.json");
+function getWritableDataDir(): string {
+  try {
+    const cwdData = path.resolve(process.cwd(), "data");
+    if (!fs.existsSync(cwdData)) {
+      fs.mkdirSync(cwdData, { recursive: true });
+    }
+    const testFile = path.join(cwdData, ".write-test");
+    fs.writeFileSync(testFile, "ok");
+    fs.unlinkSync(testFile);
+    return cwdData;
+  } catch {
+    const tmpData = path.join(os.tmpdir(), "ai-agent-data");
+    if (!fs.existsSync(tmpData)) {
+      fs.mkdirSync(tmpData, { recursive: true });
+    }
+    return tmpData;
+  }
+}
+
+function getDataFile(): string {
+  const dataDir = getWritableDataDir();
+  return path.join(dataDir, "registrations.json");
+}
 
 function ensureStoreExists(): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2), "utf-8");
+  const dataFile = getDataFile();
+  if (!fs.existsSync(dataFile)) {
+    fs.writeFileSync(dataFile, JSON.stringify([], null, 2), "utf-8");
   }
 }
 
 export function getRegistrations(): Registration[] {
   ensureStoreExists();
   try {
-    const raw = fs.readFileSync(DATA_FILE, "utf-8");
+    const raw = fs.readFileSync(getDataFile(), "utf-8");
     return JSON.parse(raw) as Registration[];
   } catch {
     return [];
@@ -82,7 +102,7 @@ export function addRegistration(
   };
 
   registrations.push(newRegistration);
-  fs.writeFileSync(DATA_FILE, JSON.stringify(registrations, null, 2), "utf-8");
+  fs.writeFileSync(getDataFile(), JSON.stringify(registrations, null, 2), "utf-8");
 
   return {
     success: true,

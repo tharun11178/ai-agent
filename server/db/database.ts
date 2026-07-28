@@ -1,15 +1,31 @@
 import sqlite3 from 'sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import bcrypt from 'bcryptjs';
 import { nanoid } from 'nanoid';
 
-const DATA_DIR = path.resolve(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'challenge.db');
-
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+function getWritableDataDir(): string {
+  try {
+    const cwdData = path.resolve(process.cwd(), 'data');
+    if (!fs.existsSync(cwdData)) {
+      fs.mkdirSync(cwdData, { recursive: true });
+    }
+    const testFile = path.join(cwdData, '.write-test');
+    fs.writeFileSync(testFile, 'ok');
+    fs.unlinkSync(testFile);
+    return cwdData;
+  } catch {
+    const tmpData = path.join(os.tmpdir(), 'ai-agent-data');
+    if (!fs.existsSync(tmpData)) {
+      fs.mkdirSync(tmpData, { recursive: true });
+    }
+    return tmpData;
+  }
 }
+
+const DATA_DIR = getWritableDataDir();
+const DB_PATH = path.join(DATA_DIR, 'challenge.db');
 
 // Enable verbose SQLite logging in non-production if needed
 const sqlite = sqlite3.verbose();
