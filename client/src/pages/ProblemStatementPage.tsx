@@ -3,6 +3,7 @@ import { Lock, CheckCircle, Clock, AlertTriangle, ArrowRight, Copy, Check, Refre
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
+import { apiFetch } from '@/lib/api';
 
 interface ProblemStatement {
   id: string;
@@ -31,7 +32,7 @@ export default function ProblemStatementPage() {
 
   const fetchProblemStatus = async () => {
     try {
-      const res = await fetch('/api/problem-statement');
+      const res = await apiFetch('/api/problem-statement');
       const data = await res.json();
       setProblemData(data);
 

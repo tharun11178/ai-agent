@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Users, Bell, FileText, Send, Trophy, Lock, CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { apiFetch } from '@/lib/api';
 
 interface ProblemStatement {
   id: string;
@@ -20,7 +21,7 @@ export default function Dashboard() {
   } | null>(null);
 
   useEffect(() => {
-    fetch('/api/problem-statement')
+    apiFetch('/api/problem-statement')
       .then((res) => res.json())
       .then((data) => setProblemData(data))
       .catch(() => setProblemData({ released: false, message: 'Locked' }));

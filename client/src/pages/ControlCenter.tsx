@@ -24,6 +24,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiFetch } from '@/lib/api';
 
 interface Registration {
   id: string;
@@ -128,10 +129,10 @@ export default function ControlCenter() {
       const headers = { Authorization: `Bearer ${authToken}` };
 
       const [regRes, probRes, anaRes, logRes] = await Promise.all([
-        fetch('/api/admin/registrations', { headers }),
-        fetch('/api/admin/problems', { headers }),
-        fetch('/api/admin/analytics', { headers }),
-        fetch('/api/admin/logs', { headers }),
+        apiFetch('/api/admin/registrations', { headers }),
+        apiFetch('/api/admin/problems', { headers }),
+        apiFetch('/api/admin/analytics', { headers }),
+        apiFetch('/api/admin/logs', { headers }),
       ]);
 
       if (regRes.status === 403 || probRes.status === 403 || anaRes.status === 403) {
@@ -169,7 +170,7 @@ export default function ControlCenter() {
     setLoggingIn(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -201,7 +202,7 @@ export default function ControlCenter() {
   const handleToggleRelease = async (released: boolean) => {
     if (!token) return;
     try {
-      const response = await fetch('/api/admin/problems/release', {
+      const response = await apiFetch('/api/admin/problems/release', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -233,7 +234,7 @@ export default function ControlCenter() {
 
     setUploading(true);
     try {
-      const response = await fetch('/api/admin/problems/upload', {
+      const response = await apiFetch('/api/admin/problems/upload', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -267,7 +268,7 @@ export default function ControlCenter() {
   const handleDeleteProblem = async (id: string) => {
     if (!token) return;
     try {
-      const res = await fetch(`/api/admin/problems/${id}`, {
+      const res = await apiFetch(`/api/admin/problems/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -287,7 +288,7 @@ export default function ControlCenter() {
   const handleDeleteTeam = async (id: string) => {
     if (!token) return;
     try {
-      const res = await fetch(`/api/admin/registrations/${id}`, {
+      const res = await apiFetch(`/api/admin/registrations/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -309,7 +310,7 @@ export default function ControlCenter() {
     if (!token) return;
     setUpdatingConfig(true);
     try {
-      const res = await fetch('/api/admin/config', {
+      const res = await apiFetch('/api/admin/config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

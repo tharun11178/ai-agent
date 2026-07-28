@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle, Lock, Loader2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { QRCodeSection } from '@/components/QRCodeSection';
+import { apiFetch } from '@/lib/api';
 
 interface RegStatus {
   open: boolean;
@@ -59,7 +60,7 @@ export default function Register() {
   const fetchStatus = async () => {
     setLoadingStatus(true);
     try {
-      const res = await fetch('/api/register/status');
+      const res = await apiFetch('/api/register/status');
       const data = await res.json();
       if (data.success) {
         setRegStatus(data);
@@ -77,7 +78,7 @@ export default function Register() {
     if (!val) return;
 
     try {
-      const res = await fetch('/api/register/check-duplicate', {
+      const res = await apiFetch('/api/register/check-duplicate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: val }),
@@ -144,7 +145,7 @@ export default function Register() {
     setSubmitting(true);
 
     try {
-      const response = await fetch('/api/register', {
+      const response = await apiFetch('/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
