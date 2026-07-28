@@ -25,7 +25,7 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
       origin = window.location.origin;
     }
 
-    const fullUrl = `${origin}/register`;
+    const fullUrl = origin || '/';
     setTargetUrl(fullUrl);
   }, []);
 

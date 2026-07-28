@@ -64,9 +64,11 @@ export default function Register() {
       const data = await res.json();
       if (data.success) {
         setRegStatus(data);
+      } else {
+        setRegStatus({ open: true, isFull: false, maxTeams: 40, registeredTeams: 0, availableSlots: 40 });
       }
     } catch {
-      // Fallback
+      setRegStatus({ open: true, isFull: false, maxTeams: 40, registeredTeams: 0, availableSlots: 40 });
     } finally {
       setLoadingStatus(false);
     }
