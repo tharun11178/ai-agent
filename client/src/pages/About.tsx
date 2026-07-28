@@ -47,8 +47,7 @@ export default function About() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-12"
         >
           <motion.div variants={itemVariants} className="max-w-3xl">
@@ -67,8 +66,7 @@ export default function About() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-12"
         >
           <motion.div variants={itemVariants}>
@@ -102,8 +100,7 @@ export default function About() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-12"
         >
           <motion.div variants={itemVariants}>
@@ -136,8 +133,7 @@ export default function About() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-12"
         >
           <motion.div variants={itemVariants}>

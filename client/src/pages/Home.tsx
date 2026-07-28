@@ -29,8 +29,7 @@ export default function Home() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-12"
         >
           <motion.div variants={itemVariants} className="max-w-3xl">
@@ -57,8 +56,7 @@ export default function Home() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-12"
         >
           <motion.div variants={itemVariants}>
@@ -98,8 +96,7 @@ export default function Home() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-12"
         >
           <motion.div variants={itemVariants}>
@@ -146,8 +143,7 @@ export default function Home() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container text-center space-y-8"
         >
           <motion.div variants={itemVariants} className="space-y-4">

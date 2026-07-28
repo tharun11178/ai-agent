@@ -66,8 +66,7 @@ export default function FAQ() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-12"
         >
           <motion.div variants={itemVariants} className="max-w-3xl">
@@ -86,8 +85,7 @@ export default function FAQ() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container max-w-3xl space-y-4"
         >
           {faqs.map((faq, index) => (
@@ -131,8 +129,7 @@ export default function FAQ() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container text-center space-y-8"
         >
           <motion.div variants={itemVariants}>

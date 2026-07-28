@@ -82,8 +82,7 @@ export default function Dashboard() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-8"
         >
           <motion.div variants={itemVariants}>
@@ -102,8 +101,7 @@ export default function Dashboard() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-8"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -145,8 +143,7 @@ export default function Dashboard() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-8"
         >
           <motion.div variants={itemVariants}>
@@ -194,8 +191,7 @@ export default function Dashboard() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-8"
         >
           <motion.div variants={itemVariants}>
@@ -236,8 +232,7 @@ export default function Dashboard() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-8"
         >
           <motion.div variants={itemVariants}>

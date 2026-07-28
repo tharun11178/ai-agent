@@ -114,8 +114,7 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
       <motion.div
         variants={containerVariants}
         initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
+        animate="visible"
         className="container max-w-4xl"
       >
         <div className="glass-card p-8 md:p-12 glow-border">

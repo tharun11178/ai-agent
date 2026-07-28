@@ -87,8 +87,7 @@ export default function Rules() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-12"
         >
           <motion.div variants={itemVariants} className="max-w-3xl">
@@ -129,8 +128,7 @@ export default function Rules() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-12"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -169,8 +167,7 @@ export default function Rules() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container space-y-12"
         >
           <motion.div variants={itemVariants}>
@@ -210,8 +207,7 @@ export default function Rules() {
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+          animate="visible"
           className="container text-center space-y-6"
         >
           <motion.div variants={itemVariants}>

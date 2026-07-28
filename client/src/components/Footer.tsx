@@ -20,8 +20,7 @@ export function Footer() {
       <motion.div
         variants={containerVariants}
         initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
+        animate="visible"
         className="container py-16 space-y-12"
       >
         {/* Main Footer Content */}
