@@ -1,4 +1,12 @@
 {
+  "client": {
+    "source": "dist/public",
+    "ignore": [
+      "catalyst.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  },
   "functions": {
     "targets": [
       "express_app"
@@ -14,3 +22,4 @@
     ]
   }
 }
+
