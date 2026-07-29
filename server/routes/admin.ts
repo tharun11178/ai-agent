@@ -160,7 +160,7 @@ router.get('/analytics', async (_req: Request, res: Response) => {
     const teams = await dbAll(`SELECT college, member2, createdAt FROM teams`);
     const problems = await dbAll(`SELECT released FROM problems`);
 
-    const maxTeams = parseInt(maxTeamsConfig?.value || '40', 10);
+    const maxTeams = parseInt(maxTeamsConfig?.value || '100', 10);
     const registrationOpen = regOpenConfig?.value === 'true';
     const totalTeams = teams.length;
     const availableSlots = Math.max(0, maxTeams - totalTeams);

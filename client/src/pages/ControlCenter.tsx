@@ -104,7 +104,7 @@ export default function ControlCenter() {
   const [uploading, setUploading] = useState(false);
 
   // Event Config Form
-  const [configMaxTeams, setConfigMaxTeams] = useState<number>(40);
+  const [configMaxTeams, setConfigMaxTeams] = useState<number>(100);
   const [updatingConfig, setUpdatingConfig] = useState(false);
 
   const containerVariants = {

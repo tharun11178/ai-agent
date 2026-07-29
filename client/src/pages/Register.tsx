@@ -29,9 +29,9 @@ export default function Register() {
   const [regStatus, setRegStatus] = useState<RegStatus | null>({
     open: true,
     isFull: false,
-    maxTeams: 40,
+    maxTeams: 100,
     registeredTeams: 0,
-    availableSlots: 40,
+    availableSlots: 100,
   });
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -71,10 +71,10 @@ export default function Register() {
       if (data.success) {
         setRegStatus(data);
       } else {
-        setRegStatus({ open: true, isFull: false, maxTeams: 40, registeredTeams: 0, availableSlots: 40 });
+        setRegStatus({ open: true, isFull: false, maxTeams: 100, registeredTeams: 0, availableSlots: 100 });
       }
     } catch {
-      setRegStatus({ open: true, isFull: false, maxTeams: 40, registeredTeams: 0, availableSlots: 40 });
+      setRegStatus({ open: true, isFull: false, maxTeams: 100, registeredTeams: 0, availableSlots: 100 });
     } finally {
       setLoadingStatus(false);
     }

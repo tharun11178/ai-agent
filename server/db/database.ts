@@ -117,11 +117,8 @@ export async function initDatabase(): Promise<void> {
     );
   `);
 
-  const initialMaxTeams = process.env.MAX_TEAMS || '40';
-  const maxTeamsConfig = await dbGet(`SELECT value FROM event_config WHERE key = 'MAX_TEAMS'`);
-  if (!maxTeamsConfig) {
-    await dbRun(`INSERT INTO event_config (key, value) VALUES ('MAX_TEAMS', ?)`, [initialMaxTeams]);
-  }
+  const initialMaxTeams = process.env.MAX_TEAMS || '100';
+  await dbRun(`INSERT OR REPLACE INTO event_config (key, value) VALUES ('MAX_TEAMS', ?)`, [initialMaxTeams]);
 
   const regOpenConfig = await dbGet(`SELECT value FROM event_config WHERE key = 'registrationOpen'`);
   if (!regOpenConfig) {

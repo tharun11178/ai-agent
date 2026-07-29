@@ -12,7 +12,7 @@ router.get('/status', async (_req: Request, res: Response) => {
     const regOpenConfig = await dbGet<{ value: string }>(`SELECT value FROM event_config WHERE key = 'registrationOpen'`);
     const countResult = await dbGet<{ count: number }>(`SELECT COUNT(*) as count FROM teams`);
 
-    const maxTeams = parseInt(maxTeamsConfig?.value || '40', 10);
+    const maxTeams = parseInt(maxTeamsConfig?.value || '100', 10);
     const registrationOpen = regOpenConfig?.value === 'true';
     const registeredTeams = countResult?.count || 0;
     const availableSlots = Math.max(0, maxTeams - registeredTeams);
@@ -82,7 +82,7 @@ router.post('/', registerLimiter, async (req: Request, res: Response) => {
     const regOpenConfig = await dbGet<{ value: string }>(`SELECT value FROM event_config WHERE key = 'registrationOpen'`);
     const countResult = await dbGet<{ count: number }>(`SELECT COUNT(*) as count FROM teams`);
 
-    const maxTeams = parseInt(maxTeamsConfig?.value || '40', 10);
+    const maxTeams = parseInt(maxTeamsConfig?.value || '100', 10);
     const registrationOpen = regOpenConfig?.value === 'true';
     const registeredTeams = countResult?.count || 0;
 
