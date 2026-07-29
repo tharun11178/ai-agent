@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { FuturisticRobotVisual } from './FuturisticRobotVisual';
-import { Rocket, ExternalLink, ChevronDown, Sparkles, Trophy, Calendar, Users, Award, ShieldCheck } from 'lucide-react';
+import { Rocket, ExternalLink, ChevronDown, Sparkles, Trophy, Calendar, Users, Award, ShieldCheck, FileText } from 'lucide-react';
 
 export function HeroSection() {
   const [, navigate] = useLocation();
@@ -153,6 +153,30 @@ export function HeroSection() {
                     <p className="text-xs font-bold text-white leading-none">Certification</p>
                     <p className="text-[10px] text-gray-400">All Participants</p>
                   </div>
+                </div>
+              </motion.div>
+
+              {/* Problem Statement Banner Link */}
+              <motion.div
+                variants={itemVariants}
+                onClick={() => navigate('/problem-statement')}
+                className="flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-cyan-500/20 border border-blue-400/40 hover:border-cyan-400 cursor-pointer transition-all duration-300 group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-500/20 border border-blue-400/40 flex items-center justify-center text-cyan-300 group-hover:scale-110 transition-transform">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
+                      📋 Official Problem Statement Page
+                    </h4>
+                    <p className="text-[11px] text-gray-300/80">
+                      View real-time release status, guidelines & challenge specifications
+                    </p>
+                  </div>
+                </div>
+                <div className="px-3 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-xs font-bold border border-cyan-400/30 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-all">
+                  View →
                 </div>
               </motion.div>
             </div>
