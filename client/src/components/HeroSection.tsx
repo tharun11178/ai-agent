@@ -49,7 +49,7 @@ export function HeroSection() {
           {/* Glass Card Wrapper */}
           <motion.div
             variants={itemVariants}
-            className="glass-card p-6 sm:p-8 md:p-10 border border-blue-500/30 bg-[#0F172A]/70 backdrop-blur-2xl shadow-[0_0_50px_rgba(15,23,42,0.8)] relative overflow-hidden"
+            className="glass-card p-4 sm:p-8 md:p-10 border border-blue-500/30 bg-[#0F172A]/70 backdrop-blur-2xl shadow-[0_0_50px_rgba(15,23,42,0.8)] relative overflow-hidden"
           >
             {/* Top Glowing Ambient Bar */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-400" />
@@ -126,32 +126,32 @@ export function HeroSection() {
                 </motion.button>
               </motion.div>
 
-              {/* Event Quick Specs Grid - Mobile Responsive Stack */}
+              {/* Event Quick Specs Grid - Overflow Safe Responsive Layout */}
               <motion.div
                 variants={itemVariants}
-                className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 pt-6 border-t border-blue-500/20"
+                className="grid grid-cols-3 gap-1.5 sm:gap-3 pt-5 border-t border-blue-500/20"
               >
-                <div className="flex items-center gap-2.5 p-3 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 min-w-0">
-                  <Trophy className="w-5 h-5 text-yellow-400 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-white leading-snug truncate">Grand Prizes</p>
-                    <p className="text-[11px] sm:text-[10px] text-gray-300 truncate">Cash & Awards</p>
+                <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start text-center sm:text-left gap-1 sm:gap-2.5 p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
+                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 shrink-0" />
+                  <div className="min-w-0 w-full flex-1">
+                    <p className="text-[11px] sm:text-xs font-bold text-white leading-tight truncate">Grand Prizes</p>
+                    <p className="text-[9px] sm:text-[10px] text-gray-300 truncate">Cash & Awards</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 p-3 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 min-w-0">
-                  <Users className="w-5 h-5 text-cyan-400 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-white leading-snug truncate">Team Size</p>
-                    <p className="text-[11px] sm:text-[10px] text-gray-300 truncate">1 - 2 Members</p>
+                <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start text-center sm:text-left gap-1 sm:gap-2.5 p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400 shrink-0" />
+                  <div className="min-w-0 w-full flex-1">
+                    <p className="text-[11px] sm:text-xs font-bold text-white leading-tight truncate">Team Size</p>
+                    <p className="text-[9px] sm:text-[10px] text-gray-300 truncate">1 - 2 Members</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 p-3 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 min-w-0">
-                  <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-white leading-snug truncate">Certification</p>
-                    <p className="text-[11px] sm:text-[10px] text-gray-300 truncate">All Participants</p>
+                <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start text-center sm:text-left gap-1 sm:gap-2.5 p-2 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
+                  <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
+                  <div className="min-w-0 w-full flex-1">
+                    <p className="text-[11px] sm:text-xs font-bold text-white leading-tight truncate">Certification</p>
+                    <p className="text-[9px] sm:text-[10px] text-gray-300 truncate">All Participants</p>
                   </div>
                 </div>
               </motion.div>
