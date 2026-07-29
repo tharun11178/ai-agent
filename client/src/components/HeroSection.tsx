@@ -126,32 +126,32 @@ export function HeroSection() {
                 </motion.button>
               </motion.div>
 
-              {/* Event Quick Specs Grid */}
+              {/* Event Quick Specs Grid - Mobile Responsive Stack */}
               <motion.div
                 variants={itemVariants}
-                className="grid grid-cols-3 gap-3 pt-6 border-t border-blue-500/20"
+                className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 pt-6 border-t border-blue-500/20"
               >
-                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-2.5 p-3 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 min-w-0">
                   <Trophy className="w-5 h-5 text-yellow-400 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-white leading-none">Grand Prizes</p>
-                    <p className="text-[10px] text-gray-400">Cash & Awards</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-white leading-snug truncate">Grand Prizes</p>
+                    <p className="text-[11px] sm:text-[10px] text-gray-300 truncate">Cash & Awards</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-2.5 p-3 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 min-w-0">
                   <Users className="w-5 h-5 text-cyan-400 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-white leading-none">Team Size</p>
-                    <p className="text-[10px] text-gray-400">1 - 2 Members</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-white leading-snug truncate">Team Size</p>
+                    <p className="text-[11px] sm:text-[10px] text-gray-300 truncate">1 - 2 Members</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-2.5 p-3 sm:p-2.5 rounded-xl bg-white/5 border border-white/10 min-w-0">
                   <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-white leading-none">Certification</p>
-                    <p className="text-[10px] text-gray-400">All Participants</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-white leading-snug truncate">Certification</p>
+                    <p className="text-[11px] sm:text-[10px] text-gray-300 truncate">All Participants</p>
                   </div>
                 </div>
               </motion.div>

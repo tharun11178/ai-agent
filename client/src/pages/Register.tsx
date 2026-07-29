@@ -250,17 +250,70 @@ export default function Register() {
               </div>
             </motion.div>
           ) : submitted ? (
-            /* SUCCESS STATE */
-            <motion.div variants={itemVariants} className="glass-card p-12 text-center space-y-6">
-              <div className="flex justify-center">
-                <CheckCircle className="w-16 h-16 text-accent" />
+            /* REGISTRATION COMPLETED STATE */
+            <motion.div variants={itemVariants} className="glass-card p-8 md:p-12 text-center space-y-6 border-2 border-emerald-500/50 shadow-[0_0_40px_rgba(34,197,94,0.3)]">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold uppercase tracking-widest animate-pulse">
+                <CheckCircle className="w-4 h-4" />
+                <span>Status: Completed</span>
               </div>
-              <h2 className="text-3xl font-bold">Registration Successful!</h2>
-              <p className="text-lg text-foreground/80 leading-relaxed">
-                Your team has been registered successfully. Check your email for confirmation and event instructions.
-              </p>
-              <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-sm text-foreground/70">
-                You will receive an email with event confirmation and schedule details.
+
+              <div className="flex justify-center pt-2">
+                <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-400 shadow-[0_0_30px_rgba(34,197,94,0.5)]">
+                  <CheckCircle className="w-10 h-10" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h2 className="text-3xl md:text-4xl font-extrabold text-white">
+                  Registration <span className="text-emerald-400">Completed!</span>
+                </h2>
+                <p className="text-base md:text-lg text-gray-300 max-w-md mx-auto leading-relaxed">
+                  Congratulations! Your team registration for the AI Agent Challenge 2026 has been successfully completed and recorded.
+                </p>
+              </div>
+
+              {/* Team Confirmation Summary Box */}
+              <div className="p-6 rounded-2xl bg-white/5 border border-emerald-500/30 text-left space-y-3 font-sans">
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <span className="text-xs text-gray-400 font-semibold uppercase">Registration Status</span>
+                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    ✓ COMPLETED
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-gray-400">Team Name</p>
+                    <p className="font-bold text-white">{formData.teamName || 'Registered Team'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Team Leader</p>
+                    <p className="font-bold text-white">{formData.leaderName || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Leader Email</p>
+                    <p className="font-medium text-cyan-300 truncate">{formData.leaderEmail || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">College</p>
+                    <p className="font-medium text-gray-200">{formData.college || 'Kuppam Engineering College'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+                <button
+                  onClick={() => (window.location.href = '/dashboard')}
+                  className="btn-primary py-3 px-6 text-sm font-bold shadow-[0_0_20px_rgba(59,130,246,0.5)]"
+                >
+                  Go to Dashboard →
+                </button>
+                <button
+                  onClick={() => (window.location.href = '/problem-statement')}
+                  className="btn-secondary py-3 px-6 text-sm font-bold"
+                >
+                  View Problem Statement
+                </button>
               </div>
             </motion.div>
           ) : (
