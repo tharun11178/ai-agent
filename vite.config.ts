@@ -234,6 +234,17 @@ export default defineConfig(({ command }) => {
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    target: "esnext",
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "wouter"],
+          "vendor-framer": ["framer-motion"],
+          "vendor-icons": ["lucide-react"],
+        },
+      },
+    },
   },
   server: {
     port: 3000,

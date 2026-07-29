@@ -8,8 +8,10 @@ export function AnimatedBackground() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
+
+    const isMobile = window.innerWidth < 768;
 
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
@@ -17,16 +19,19 @@ export function AnimatedBackground() {
     };
 
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', resizeCanvas, { passive: true });
 
     const handleMouseMove = (e: MouseEvent) => {
       mousePos.current.targetX = e.clientX;
       mousePos.current.targetY = e.clientY;
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    if (!isMobile) {
+      window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    }
 
-    // Particle system
+    // Particle system - Adaptive particle count based on screen size
+    const particleCount = isMobile ? 30 : 65;
     const particles: Array<{
       x: number;
       y: number;
@@ -44,14 +49,14 @@ export function AnimatedBackground() {
       'rgba(34, 197, 94, ',   // Success Emerald
     ];
 
-    for (let i = 0; i < 65; i++) {
+    for (let i = 0; i < particleCount; i++) {
       particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.6,
-        vy: (Math.random() - 0.5) * 0.6,
-        radius: Math.random() * 2 + 1,
-        opacity: Math.random() * 0.6 + 0.2,
+        vx: (Math.random() - 0.5) * (isMobile ? 0.4 : 0.6),
+        vy: (Math.random() - 0.5) * (isMobile ? 0.4 : 0.6),
+        radius: Math.random() * (isMobile ? 1.5 : 2) + 1,
+        opacity: Math.random() * 0.5 + 0.2,
         color: colors[Math.floor(Math.random() * colors.length)],
       });
     }
@@ -63,32 +68,31 @@ export function AnimatedBackground() {
       connections: number[];
     }
     const circuitNodes: CircuitNode[] = [];
-    const gridCols = 8;
-    const gridRows = 5;
+    const gridCols = isMobile ? 4 : 8;
+    const gridRows = isMobile ? 3 : 5;
 
     for (let r = 0; r <= gridRows; r++) {
       for (let c = 0; c <= gridCols; c++) {
         circuitNodes.push({
-          x: (c / gridCols) * window.innerWidth + (Math.random() - 0.5) * 40,
-          y: (r / gridRows) * window.innerHeight + (Math.random() - 0.5) * 40,
+          x: (c / gridCols) * window.innerWidth + (Math.random() - 0.5) * 30,
+          y: (r / gridRows) * window.innerHeight + (Math.random() - 0.5) * 30,
           connections: [],
         });
       }
     }
 
-    // Connect nearest nodes in circuit pattern
     circuitNodes.forEach((node, idx) => {
       circuitNodes.forEach((other, oIdx) => {
         if (idx !== oIdx) {
           const dist = Math.hypot(node.x - other.x, node.y - other.y);
-          if (dist < 260 && Math.random() < 0.25) {
+          if (dist < (isMobile ? 180 : 250) && Math.random() < (isMobile ? 0.2 : 0.25)) {
             node.connections.push(oIdx);
           }
         }
       });
     });
 
-    // Moving pulse signals along circuit lines
+    const pulseCount = isMobile ? 6 : 15;
     const circuitPulses: Array<{
       from: number;
       to: number;
@@ -97,7 +101,7 @@ export function AnimatedBackground() {
       color: string;
     }> = [];
 
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < pulseCount; i++) {
       const from = Math.floor(Math.random() * circuitNodes.length);
       const conn = circuitNodes[from].connections;
       if (conn.length > 0) {
@@ -113,72 +117,55 @@ export function AnimatedBackground() {
     }
 
     let animationId: number;
+    let isTabActive = true;
+
+    const handleVisibilityChange = () => {
+      isTabActive = !document.hidden;
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const animate = () => {
-      // Smooth mouse position damping
-      mousePos.current.x += (mousePos.current.targetX - mousePos.current.x) * 0.08;
-      mousePos.current.y += (mousePos.current.targetY - mousePos.current.y) * 0.08;
+      if (!isTabActive) {
+        animationId = requestAnimationFrame(animate);
+        return;
+      }
 
-      // Base background color #0F172A with trailing opacity
+      if (!isMobile && mousePos.current.x > 0) {
+        mousePos.current.x += (mousePos.current.targetX - mousePos.current.x) * 0.08;
+        mousePos.current.y += (mousePos.current.targetY - mousePos.current.y) * 0.08;
+      }
+
       ctx.fillStyle = '#0F172A';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw subtle background radial glow
-      const bgGlow1 = ctx.createRadialGradient(
-        canvas.width * 0.2, canvas.height * 0.3, 0,
-        canvas.width * 0.2, canvas.height * 0.3, canvas.width * 0.5
-      );
-      bgGlow1.addColorStop(0, 'rgba(59, 130, 246, 0.12)');
-      bgGlow1.addColorStop(1, 'rgba(15, 23, 42, 0)');
-      ctx.fillStyle = bgGlow1;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      const bgGlow2 = ctx.createRadialGradient(
-        canvas.width * 0.8, canvas.height * 0.7, 0,
-        canvas.width * 0.8, canvas.height * 0.7, canvas.width * 0.4
-      );
-      bgGlow2.addColorStop(0, 'rgba(139, 92, 246, 0.12)');
-      bgGlow2.addColorStop(1, 'rgba(15, 23, 42, 0)');
-      ctx.fillStyle = bgGlow2;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Draw Cursor Glow Effect
-      if (mousePos.current.x > 0) {
+      if (!isMobile && mousePos.current.x > 0) {
         const cursorGlow = ctx.createRadialGradient(
           mousePos.current.x, mousePos.current.y, 0,
-          mousePos.current.x, mousePos.current.y, 280
+          mousePos.current.x, mousePos.current.y, 240
         );
-        cursorGlow.addColorStop(0, 'rgba(6, 182, 212, 0.18)');
-        cursorGlow.addColorStop(0.5, 'rgba(139, 92, 246, 0.08)');
+        cursorGlow.addColorStop(0, 'rgba(6, 182, 212, 0.14)');
         cursorGlow.addColorStop(1, 'rgba(15, 23, 42, 0)');
         ctx.fillStyle = cursorGlow;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // Draw digital circuit lines
+      // Draw circuit lines
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.06)';
+      ctx.lineWidth = 1;
       circuitNodes.forEach((node) => {
         node.connections.forEach((targetIdx) => {
           const target = circuitNodes[targetIdx];
-          ctx.strokeStyle = 'rgba(59, 130, 246, 0.06)';
-          ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(node.x, node.y);
-          // Draw orthogonal / bent line for circuit look
           const midX = (node.x + target.x) / 2;
           ctx.lineTo(midX, node.y);
           ctx.lineTo(midX, target.y);
           ctx.lineTo(target.x, target.y);
           ctx.stroke();
-
-          // Small circuit joint dot
-          ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
-          ctx.beginPath();
-          ctx.arc(node.x, node.y, 2, 0, Math.PI * 2);
-          ctx.fill();
         });
       });
 
-      // Update & draw moving pulses along circuit lines
+      // Update circuit pulses
       circuitPulses.forEach((pulse) => {
         pulse.progress += pulse.speed;
         if (pulse.progress >= 1) {
@@ -207,15 +194,7 @@ export function AnimatedBackground() {
 
         ctx.fillStyle = `${pulse.color}0.8)`;
         ctx.beginPath();
-        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        const pulseGlow = ctx.createRadialGradient(px, py, 0, px, py, 8);
-        pulseGlow.addColorStop(0, `${pulse.color}0.6)`);
-        pulseGlow.addColorStop(1, `${pulse.color}0)`);
-        ctx.fillStyle = pulseGlow;
-        ctx.beginPath();
-        ctx.arc(px, py, 8, 0, Math.PI * 2);
+        ctx.arc(px, py, 2, 0, Math.PI * 2);
         ctx.fill();
       });
 
@@ -230,43 +209,33 @@ export function AnimatedBackground() {
         particle.x = Math.max(0, Math.min(canvas.width, particle.x));
         particle.y = Math.max(0, Math.min(canvas.height, particle.y));
 
-        // Draw particle glow
-        const gradient = ctx.createRadialGradient(
-          particle.x, particle.y, 0,
-          particle.x, particle.y, particle.radius * 4
-        );
-        gradient.addColorStop(0, `${particle.color}${particle.opacity})`);
-        gradient.addColorStop(1, `${particle.color}0)`);
-
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.radius * 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Draw core
-        ctx.fillStyle = `${particle.color}${Math.min(1, particle.opacity + 0.2)})`;
+        ctx.fillStyle = `${particle.color}${particle.opacity})`;
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // Draw subtle connecting lines between nearby particles
-      particles.forEach((p1, i) => {
-        particles.slice(i + 1).forEach((p2) => {
-          const dx = p1.x - p2.x;
-          const dy = p1.y - p2.y;
-          const distance = Math.hypot(dx, dy);
+      // Draw particle connections (desktop only)
+      if (!isMobile) {
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const p1 = particles[i];
+            const p2 = particles[j];
+            const dx = p1.x - p2.x;
+            const dy = p1.y - p2.y;
+            const dist = Math.hypot(dx, dy);
 
-          if (distance < 130) {
-            ctx.strokeStyle = `rgba(59, 130, 246, ${0.12 * (1 - distance / 130)})`;
-            ctx.lineWidth = 0.6;
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
+            if (dist < 110) {
+              ctx.strokeStyle = `rgba(59, 130, 246, ${0.1 * (1 - dist / 110)})`;
+              ctx.lineWidth = 0.5;
+              ctx.beginPath();
+              ctx.moveTo(p1.x, p1.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.stroke();
+            }
           }
-        });
-      });
+        }
+      }
 
       animationId = requestAnimationFrame(animate);
     };
@@ -277,14 +246,15 @@ export function AnimatedBackground() {
       cancelAnimationFrame(animationId);
       window.removeEventListener('resize', resizeCanvas);
       window.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 -z-10 pointer-events-none"
-      style={{ background: '#0F172A' }}
+      className="fixed inset-0 -z-10 pointer-events-none transform-gpu"
+      style={{ background: '#0F172A', willChange: 'transform' }}
     />
   );
 }
