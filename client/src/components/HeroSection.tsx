@@ -67,14 +67,32 @@ export function HeroSection() {
                 <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
               </motion.div>
 
-              {/* Institution Header */}
-              <motion.div variants={itemVariants} className="space-y-1.5">
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight gradient-text-kec">
-                  KUPPAM ENGINEERING COLLEGE
-                </h2>
-                <p className="text-sm sm:text-base md:text-lg font-medium text-cyan-400/90 tracking-wide">
-                  Department of Artificial Intelligence & Machine Learning
-                </p>
+              {/* Institution Header & Problem Statement Highlight */}
+              <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1.5">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight gradient-text-kec">
+                    KUPPAM ENGINEERING COLLEGE
+                  </h2>
+                  <p className="text-sm sm:text-base md:text-lg font-medium text-cyan-400/90 tracking-wide">
+                    Department of Artificial Intelligence & Machine Learning
+                  </p>
+                </div>
+
+                {/* Highlighted Problem Statement Link beside KEC */}
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate('/problem-statement')}
+                  className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600/30 via-purple-600/30 to-cyan-500/30 border border-cyan-400/50 hover:border-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.35)] cursor-pointer shrink-0 transition-all group self-start sm:self-center"
+                >
+                  <FileText className="w-4 h-4 text-cyan-300 animate-pulse group-hover:scale-110 transition-transform" />
+                  <span className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
+                    📋 Problem Statement
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-cyan-400/20 text-cyan-300 text-[10px] font-extrabold uppercase border border-cyan-400/30 group-hover:bg-cyan-400 group-hover:text-slate-950 transition-all">
+                    View →
+                  </span>
+                </motion.div>
               </motion.div>
 
               {/* Main Challenge Title */}
