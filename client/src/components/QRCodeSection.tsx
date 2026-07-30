@@ -34,7 +34,7 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
     try {
       await navigator.clipboard.writeText(targetUrl);
       setCopied(true);
-      toast.success('Registration link copied to clipboard!');
+      toast.success('Event link copied to clipboard!');
       setTimeout(() => setCopied(false), 2500);
     } catch (err) {
       toast.error('Failed to copy link');
@@ -127,11 +127,11 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
               </div>
 
               <h2 className="text-3xl md:text-4xl font-bold leading-tight">
-                Scan to <span className="gradient-text">Register</span>
+                Scan for <span className="gradient-text">Event Link</span>
               </h2>
 
               <p className="text-lg text-foreground/80 leading-relaxed">
-                Scan this QR code to access the AI Agent Challenge registration portal.
+                Scan this QR code to access the AI Agent Challenge portal.
               </p>
 
               <div className="flex flex-wrap gap-4 pt-2">

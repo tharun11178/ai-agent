@@ -10,7 +10,6 @@ import About from "./pages/About";
 import Events from "./pages/Events";
 import Rules from "./pages/Rules";
 import FAQ from "./pages/FAQ";
-import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Schedule from "./pages/Schedule";
 import ControlCenter from "./pages/ControlCenter";
@@ -27,7 +26,6 @@ function Router() {
       <Route path={"/events"} component={Events} />
       <Route path={"/rules"} component={Rules} />
       <Route path={"/faq"} component={FAQ} />
-      <Route path={"/register"} component={Register} />
       <Route path={"/dashboard"} component={Dashboard} />
       <Route path={"/schedule"} component={Schedule} />
       <Route path={"/problem-statement"} component={ProblemStatementPage} />

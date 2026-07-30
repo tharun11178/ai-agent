@@ -213,15 +213,15 @@ export default function Rules() {
           <motion.div variants={itemVariants}>
             <h2 className="text-4xl font-bold mb-4">Ready to Compete?</h2>
             <p className="text-xl text-foreground/80 mb-8 max-w-2xl mx-auto">
-              Confirm your understanding of the rules and register your team for the challenge.
+              Confirm your understanding of the rules and view the official problem statement for the challenge.
             </p>
             <motion.a
-              href="/register"
+              href="/problem-statement"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="btn-primary inline-block"
             >
-              Register Your Team
+              View Problem Statement
             </motion.a>
           </motion.div>
         </motion.div>

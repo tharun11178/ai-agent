@@ -151,7 +151,7 @@ export default function Home() {
               Ready to <span className="gradient-text">Compete?</span>
             </h2>
             <p className="text-xl text-foreground/80 max-w-2xl mx-auto">
-              Join the AI Agent Challenge and showcase your problem-solving abilities. Registration is open now!
+              Join the AI Agent Challenge and showcase your problem-solving abilities. Explore the problem statement and rules to get started!
             </p>
           </motion.div>
 
@@ -159,10 +159,10 @@ export default function Home() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/register')}
+              onClick={() => navigate('/problem-statement')}
               className="btn-primary"
             >
-              Register Now
+              Problem Statement
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.05 }}

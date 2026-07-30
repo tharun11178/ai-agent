@@ -103,15 +103,15 @@ export function HeroSection() {
                 variants={itemVariants}
                 className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2"
               >
-                {/* 🚀 Register Now Button */}
+                {/* 📋 Problem Statement Button */}
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => navigate('/register')}
+                  onClick={() => navigate('/problem-statement')}
                   className="btn-primary text-sm sm:text-base font-bold shadow-[0_0_30px_rgba(59,130,246,0.6)] border-blue-400/60"
                 >
                   <Rocket className="w-5 h-5 text-cyan-300 animate-bounce" />
-                  <span>🚀 Register Now</span>
+                  <span>📋 Explore Problem Statement</span>
                 </motion.button>
 
                 {/* 🏫 Visit College Website Button */}

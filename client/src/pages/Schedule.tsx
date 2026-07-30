@@ -353,18 +353,19 @@ export default function Schedule() {
         >
           <motion.div variants={itemVariants}>
             <h2 className="text-4xl font-bold mb-4">
-              Don't Miss Out! <span className="gradient-text">Register Now</span>
+              Don't Miss Out! <span className="gradient-text">Get Prepared</span>
             </h2>
             <p className="text-xl text-foreground/80 mb-8 max-w-2xl mx-auto">
-              Join us on August 8, 2026. Secure your team's spot in the AI Agent Challenge today.
+              Join us on August 8, 2026. Review rules and problem statements to prepare your team for the AI Agent Challenge.
             </p>
-            <motion.button
+            <motion.a
+              href="/problem-statement"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="btn-primary inline-block"
             >
-              Register Your Team
-            </motion.button>
+              View Problem Statement
+            </motion.a>
           </motion.div>
         </motion.div>
       </section>

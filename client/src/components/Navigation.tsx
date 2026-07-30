@@ -95,17 +95,6 @@ export function Navigation() {
           })}
         </div>
 
-        {/* Prominent CTA Button in Nav */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => handleNavClick('/register')}
-          className="hidden sm:flex btn-primary !px-5 !py-2.5 text-xs tracking-wider uppercase shadow-[0_0_20px_rgba(59,130,246,0.5)] border-blue-400/50 font-bold"
-        >
-          <Sparkles className="w-4 h-4 text-cyan-300" />
-          Register Now
-        </motion.button>
-
         {/* Mobile Menu Toggle Button */}
         <motion.button
           whileTap={{ scale: 0.95 }}
@@ -145,15 +134,6 @@ export function Navigation() {
                 {item.label}
               </motion.button>
             ))}
-
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handleNavClick('/register')}
-              className="w-full btn-primary mt-4 py-3 justify-center text-sm font-bold uppercase tracking-wider"
-            >
-              🚀 Register Now
-            </motion.button>
           </div>
         </motion.div>
       )}
