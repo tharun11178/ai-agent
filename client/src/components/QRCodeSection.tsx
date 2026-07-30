@@ -1,21 +1,37 @@
 import { motion } from 'framer-motion';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useState, useRef, useEffect } from 'react';
-import { Download, Copy, Check, QrCode } from 'lucide-react';
+import { Download, Copy, Check, QrCode, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLocation } from 'wouter';
 
 interface QRCodeSectionProps {
   className?: string;
+  teamToken?: string;
+  customUrl?: string;
+  title?: string;
+  description?: string;
 }
 
-export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
+export function QRCodeSection({
+  className = '',
+  teamToken,
+  customUrl,
+  title = 'Scan to View Problem Statement',
+  description = 'Scan this QR code to access the official problem statement for the AI Agent Challenge.',
+}: QRCodeSectionProps) {
+  const [, navigate] = useLocation();
   const [copied, setCopied] = useState(false);
   const [targetUrl, setTargetUrl] = useState('');
   const qrRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Determine target URL dynamically
-    // Use VITE_APP_URL if defined, otherwise fallback to current window.location.origin
+    // Determine problem statement target URL dynamically
+    if (customUrl) {
+      setTargetUrl(customUrl);
+      return;
+    }
+
     const envUrl = import.meta.env.VITE_APP_URL;
     let origin = '';
 
@@ -25,19 +41,23 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
       origin = window.location.origin;
     }
 
-    const fullUrl = origin || '/';
-    setTargetUrl(fullUrl);
-  }, []);
+    const baseOrigin = origin || window.location.origin;
+    const problemPath = teamToken
+      ? `${baseOrigin}/problem-statement?token=${encodeURIComponent(teamToken)}`
+      : `${baseOrigin}/problem-statement`;
+
+    setTargetUrl(problemPath);
+  }, [teamToken, customUrl]);
 
   const handleCopyLink = async () => {
     if (!targetUrl) return;
     try {
       await navigator.clipboard.writeText(targetUrl);
       setCopied(true);
-      toast.success('Event link copied to clipboard!');
+      toast.success('Problem Statement link copied to clipboard!');
       setTimeout(() => setCopied(false), 2500);
-    } catch (err) {
-      toast.error('Failed to copy link');
+    } catch {
+      toast.error('Failed to copy link.');
     }
   };
 
@@ -49,11 +69,11 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
       return;
     }
 
-    // Create canvas export with crisp background, styling, and title
+    // Create crisp canvas export with dark futuristic styling and title
     const exportCanvas = document.createElement('canvas');
     const ctx = exportCanvas.getContext('2d');
     const padding = 40;
-    const headerHeight = 60;
+    const headerHeight = 70;
     const qrSize = canvas.width;
     const totalWidth = qrSize + padding * 2;
     const totalHeight = qrSize + padding * 2 + headerHeight;
@@ -63,14 +83,18 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
 
     if (ctx) {
       // Draw background
-      ctx.fillStyle = '#030712';
+      ctx.fillStyle = '#0F172A';
       ctx.fillRect(0, 0, totalWidth, totalHeight);
 
       // Draw header title
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 20px "Space Grotesk", sans-serif';
+      ctx.fillStyle = '#06B6D4';
+      ctx.font = 'bold 18px "Space Grotesk", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('AI Agent Challenge', totalWidth / 2, 40);
+      ctx.fillText('AI AGENT CHALLENGE 2026', totalWidth / 2, 35);
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 14px "Space Grotesk", sans-serif';
+      ctx.fillText('Problem Statement Access Pass', totalWidth / 2, 55);
 
       // Draw white background card for QR Code
       const cardX = padding - 15;
@@ -89,10 +113,10 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
 
       // Trigger download
       const link = document.createElement('a');
-      link.download = 'ai-agent-challenge-qr.png';
+      link.download = 'problem-statement-qr.png';
       link.href = exportCanvas.toDataURL('image/png');
       link.click();
-      toast.success('QR Code downloaded successfully!');
+      toast.success('Problem Statement QR Code downloaded!');
     }
   };
 
@@ -121,27 +145,37 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             {/* Left Information Column */}
             <motion.div variants={itemVariants} className="lg:col-span-7 space-y-6 text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-xs font-semibold uppercase tracking-wider">
-                <QrCode className="w-4 h-4 text-secondary" />
-                <span>Quick Access</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-bold uppercase tracking-wider shadow-[0_0_12px_rgba(6,182,212,0.2)]">
+                <QrCode className="w-4 h-4 text-cyan-400 animate-pulse" />
+                <span>Problem Statement QR</span>
               </div>
 
-              <h2 className="text-3xl md:text-4xl font-bold leading-tight">
-                Scan for <span className="gradient-text">Event Link</span>
+              <h2 className="text-3xl md:text-4xl font-extrabold leading-tight">
+                Scan to View <span className="gradient-text">Problem Statement</span>
               </h2>
 
               <p className="text-lg text-foreground/80 leading-relaxed">
-                Scan this QR code to access the AI Agent Challenge portal.
+                {description}
               </p>
 
               <div className="flex flex-wrap gap-4 pt-2">
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={handleDownload}
+                  onClick={() => navigate('/problem-statement')}
                   className="btn-primary inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold shadow-lg"
                 >
-                  <Download className="w-5 h-5" />
+                  <span>Open Scanner</span>
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleDownload}
+                  className="btn-secondary inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold"
+                >
+                  <Download className="w-4 h-4 text-cyan-400" />
                   <span>Download QR Code</span>
                 </motion.button>
 
@@ -149,17 +183,17 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={handleCopyLink}
-                  className="btn-secondary inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold"
+                  className="px-5 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 border border-primary/20 text-xs font-semibold inline-flex items-center gap-2 transition-colors"
                 >
                   {copied ? (
                     <>
-                      <Check className="w-5 h-5 text-accent" />
-                      <span className="text-accent">Copied!</span>
+                      <Check className="w-4 h-4 text-green-400" />
+                      <span className="text-green-400">Copied!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-5 h-5" />
-                      <span>Copy Link</span>
+                      <Copy className="w-4 h-4 text-primary" />
+                      <span>Copy Direct Link</span>
                     </>
                   )}
                 </motion.button>
@@ -167,7 +201,8 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
 
               {targetUrl && (
                 <p className="text-xs text-foreground/50 truncate max-w-md pt-1">
-                  Target URL: <span className="text-secondary/80 font-mono">{targetUrl}</span>
+                  Destination URL:{' '}
+                  <span className="text-cyan-400/90 font-mono">{targetUrl}</span>
                 </p>
               )}
             </motion.div>
@@ -176,16 +211,21 @@ export function QRCodeSection({ className = '' }: QRCodeSectionProps) {
             <motion.div variants={itemVariants} className="lg:col-span-5 flex justify-center">
               <div
                 ref={qrRef}
-                className="relative p-6 rounded-2xl bg-white shadow-2xl border-4 border-primary/30 transition-transform hover:scale-105 duration-300"
+                className="relative p-6 rounded-2xl bg-white shadow-2xl border-4 border-cyan-500/30 transition-transform hover:scale-105 duration-300 text-center"
               >
                 {targetUrl ? (
-                  <QRCodeCanvas
-                    value={targetUrl}
-                    size={220}
-                    level="H"
-                    includeMargin={false}
-                    className="w-full h-auto max-w-[220px] aspect-square"
-                  />
+                  <>
+                    <QRCodeCanvas
+                      value={targetUrl}
+                      size={220}
+                      level="H"
+                      includeMargin={false}
+                      className="w-full h-auto max-w-[220px] aspect-square"
+                    />
+                    <p className="text-[10px] font-mono text-slate-600 font-bold mt-2">
+                      PROBLEM STATEMENT ACCESS
+                    </p>
+                  </>
                 ) : (
                   <div className="w-[220px] h-[220px] bg-slate-100 animate-pulse rounded flex items-center justify-center">
                     <span className="text-xs text-slate-400">Loading QR...</span>
