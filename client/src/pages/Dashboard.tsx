@@ -1,32 +1,7 @@
 import { motion } from 'framer-motion';
-import { Users, Bell, FileText, Send, Trophy, Lock, CheckCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useLocation } from 'wouter';
-import { apiFetch } from '@/lib/api';
-
-interface ProblemStatement {
-  id: string;
-  title: string;
-  track: string;
-  description: string;
-  released: boolean;
-}
+import { Users, Bell, Send, Trophy, ShieldCheck } from 'lucide-react';
 
 export default function Dashboard() {
-  const [, navigate] = useLocation();
-  const [problemData, setProblemData] = useState<{
-    released: boolean;
-    problems?: ProblemStatement[];
-    message?: string;
-  } | null>(null);
-
-  useEffect(() => {
-    apiFetch('/api/problem-statement')
-      .then((res) => res.json())
-      .then((data) => setProblemData(data))
-      .catch(() => setProblemData({ released: false, message: 'Locked' }));
-  }, []);
-
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -45,30 +20,21 @@ export default function Dashboard() {
       icon: Users,
       title: 'Team Status',
       status: 'Active',
-      details: 'Your team is ready to compete',
+      details: 'Your team is registered and verified',
       color: 'text-accent',
     },
     {
       icon: Bell,
       title: 'Announcements',
       status: '2 New',
-      details: 'Check latest updates and important notices',
+      details: 'Check latest updates and event notices',
       color: 'text-secondary',
-    },
-    {
-      icon: FileText,
-      title: 'Problem Statement',
-      status: problemData?.released ? 'Released' : 'Locked',
-      details: problemData?.released
-        ? 'Problem statements are live and available below'
-        : 'Locked until August 8, 2026 at 11:00 AM IST',
-      color: problemData?.released ? 'text-green-400' : 'text-amber-400',
     },
     {
       icon: Send,
       title: 'Submission',
       status: 'Not Submitted',
-      details: 'Submit your solution before the deadline',
+      details: 'Submit your solution during the event window',
       color: 'text-warning',
     },
   ];
@@ -107,15 +73,11 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {dashboardCards.map((card, i) => {
               const Icon = card.icon;
-              const isProblemCard = card.title === 'Problem Statement';
               return (
                 <motion.div
                   key={i}
                   variants={itemVariants}
-                  onClick={isProblemCard ? () => navigate('/problem-statement') : undefined}
-                  className={`glass-card p-6 space-y-4 hover:border-primary/40 transition-colors ${
-                    isProblemCard ? 'cursor-pointer' : ''
-                  }`}
+                  className="glass-card p-6 space-y-4 hover:border-primary/40 transition-colors"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4">
@@ -242,10 +204,10 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
-                icon: FileText,
-                title: 'View Problem Statement',
-                description: 'Get problem details & tracks',
-                action: () => navigate('/problem-statement'),
+                icon: ShieldCheck,
+                title: 'Rules & Guidelines',
+                description: 'Review event rules & evaluation criteria',
+                action: () => (window.location.href = '/rules'),
               },
               {
                 icon: Send,

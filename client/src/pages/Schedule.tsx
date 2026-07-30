@@ -356,15 +356,15 @@ export default function Schedule() {
               Don't Miss Out! <span className="gradient-text">Get Prepared</span>
             </h2>
             <p className="text-xl text-foreground/80 mb-8 max-w-2xl mx-auto">
-              Join us on August 8, 2026. Review rules and problem statements to prepare your team for the AI Agent Challenge.
+              Join us on August 8, 2026. Review rules and event guidelines to prepare your team for the AI Agent Challenge.
             </p>
             <motion.a
-              href="/problem-statement"
+              href="/rules"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="btn-primary inline-block"
             >
-              View Problem Statement
+              View Rules & Guidelines
             </motion.a>
           </motion.div>
         </motion.div>

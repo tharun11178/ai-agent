@@ -21,7 +21,6 @@ const FAQ = lazy(() => import("./pages/FAQ"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Schedule = lazy(() => import("./pages/Schedule"));
 const ControlCenter = lazy(() => import("./pages/ControlCenter"));
-const ProblemStatementPage = lazy(() => import("./pages/ProblemStatementPage"));
 
 function PageFallback() {
   return (
@@ -47,7 +46,6 @@ function Router() {
         <Route path={"/faq"} component={FAQ} />
         <Route path={"/dashboard"} component={Dashboard} />
         <Route path={"/schedule"} component={Schedule} />
-        <Route path={"/problem-statement"} component={ProblemStatementPage} />
         <Route path={"/control-center"} component={ControlCenter} />
         <Route path={"/403"} component={() => <ErrorPage code="403" />} />
         <Route path={"/500"} component={() => <ErrorPage code="500" />} />

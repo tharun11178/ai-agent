@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { HeroSection } from '@/components/HeroSection';
-import { QRCodeSection } from '@/components/QRCodeSection';
 
 export default function Home() {
   const [, navigate] = useLocation();
@@ -134,9 +133,6 @@ export default function Home() {
           </div>
         </motion.div>
       </section>
-
-      {/* QR Code Section */}
-      <QRCodeSection />
 
       {/* CTA Section */}
       <section className="py-20 border-t border-primary/10">

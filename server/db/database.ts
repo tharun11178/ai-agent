@@ -72,13 +72,6 @@ export async function initDatabase(): Promise<void> {
       department TEXT,
       year TEXT,
       member2 TEXT,
-      assignedProblemId TEXT,
-      qrToken TEXT UNIQUE,
-      secretCode TEXT,
-      qrAccessEnabled INTEGER NOT NULL DEFAULT 1,
-      problemReleased INTEGER NOT NULL DEFAULT 0,
-      scannedAt TEXT,
-      scanCount INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL
     );
   `);
@@ -86,58 +79,6 @@ export async function initDatabase(): Promise<void> {
   await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_name ON teams(teamName);`);
   await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_email ON teams(leaderEmail);`);
   await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_phone ON teams(phone);`);
-  await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_qr ON teams(qrToken);`);
-
-  // Migration for existing tables without new columns
-  const tableInfo = await dbAll(`PRAGMA table_info(teams)`);
-  const existingCols = tableInfo.map((c: any) => c.name);
-
-  if (!existingCols.includes('qrToken')) {
-    await dbRun(`ALTER TABLE teams ADD COLUMN qrToken TEXT`);
-  }
-  if (!existingCols.includes('secretCode')) {
-    await dbRun(`ALTER TABLE teams ADD COLUMN secretCode TEXT`);
-  }
-  if (!existingCols.includes('qrAccessEnabled')) {
-    await dbRun(`ALTER TABLE teams ADD COLUMN qrAccessEnabled INTEGER NOT NULL DEFAULT 1`);
-  }
-  if (!existingCols.includes('problemReleased')) {
-    await dbRun(`ALTER TABLE teams ADD COLUMN problemReleased INTEGER NOT NULL DEFAULT 0`);
-  }
-  if (!existingCols.includes('scannedAt')) {
-    await dbRun(`ALTER TABLE teams ADD COLUMN scannedAt TEXT`);
-  }
-  if (!existingCols.includes('scanCount')) {
-    await dbRun(`ALTER TABLE teams ADD COLUMN scanCount INTEGER NOT NULL DEFAULT 0`);
-  }
-
-  // Backfill missing tokens and secret codes for existing teams
-  const uninitializedTeams = await dbAll<{ id: string }>(
-    `SELECT id FROM teams WHERE qrToken IS NULL OR secretCode IS NULL`
-  );
-  for (const team of uninitializedTeams) {
-    const token = `qr-${nanoid(16)}`;
-    const secret = `SEC-${nanoid(6).toUpperCase()}`;
-    await dbRun(
-      `UPDATE teams SET qrToken = COALESCE(qrToken, ?), secretCode = COALESCE(secretCode, ?) WHERE id = ?`,
-      [token, secret, team.id]
-    );
-  }
-
-  // Create Problems Table
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS problems (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      track TEXT NOT NULL,
-      description TEXT NOT NULL,
-      fileUrl TEXT,
-      fileType TEXT,
-      released INTEGER NOT NULL DEFAULT 0,
-      releasedAt TEXT,
-      createdAt TEXT NOT NULL
-    );
-  `);
 
   // Create Activity Logs Table
   await dbRun(`
@@ -172,41 +113,6 @@ export async function initDatabase(): Promise<void> {
   const newHash = bcrypt.hashSync(adminPass, 10);
   await dbRun(`INSERT OR REPLACE INTO event_config (key, value) VALUES ('adminPasswordHash', ?)`, [newHash]);
   await dbRun(`INSERT OR REPLACE INTO event_config (key, value) VALUES ('adminUsername', 'admin')`);
-
-  // Seed default Problems if table is empty
-  const problemCount = await dbGet<{ count: number }>(`SELECT COUNT(*) as count FROM problems`);
-  if (problemCount && problemCount.count === 0) {
-    const defaultProblems = [
-      {
-        id: 'prob-1',
-        title: 'Autonomous Logistics Routing Agent',
-        track: 'AI Agents & Autonomous Systems',
-        description:
-          'Design an intelligent agent that dynamically re-routes delivery fleets in real time during supply chain disruptions.',
-      },
-      {
-        id: 'prob-2',
-        title: 'Real-Time Code Vulnerability Detection Agent',
-        track: 'Cybersecurity & Code Analysis',
-        description:
-          'Build an LLM-powered code review agent capable of catching zero-day vulnerabilities in pull requests before deployment.',
-      },
-      {
-        id: 'prob-3',
-        title: 'Multi-Agent Healthcare Triage System',
-        track: 'Healthcare AI & Automation',
-        description:
-          'Develop a multi-agent system that analyzes patient vitals, prioritizes emergency care cases, and assists medical staff.',
-      },
-    ];
-
-    for (const prob of defaultProblems) {
-      await dbRun(
-        `INSERT INTO problems (id, title, track, description, released, createdAt) VALUES (?, ?, ?, ?, 0, ?)`,
-        [prob.id, prob.title, prob.track, prob.description, new Date().toISOString()]
-      );
-    }
-  }
 }
 
 // Log activity helper
