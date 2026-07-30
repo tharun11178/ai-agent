@@ -5,6 +5,13 @@
 export function getApiUrl(endpoint: string): string {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
+  // Read backend web service URL from VITE_API_URL environment variable (Render Web Service)
+  const envApiUrl = import.meta.env.VITE_API_URL;
+  if (envApiUrl && typeof envApiUrl === 'string' && envApiUrl.trim() !== '') {
+    const baseUrl = envApiUrl.replace(/\/$/, '');
+    return `${baseUrl}${cleanEndpoint}`;
+  }
+
   // When deployed on Zoho Catalyst, Advanced I/O function express_app is hosted under /server/express_app/
   const isCatalystEnv =
     window.location.hostname.includes('catalystserverless') ||

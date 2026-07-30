@@ -8,7 +8,9 @@
   },
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build && node -e \"fs.copyFileSync('dist/public/index.html', 'dist/public/404.html'); if (fs.existsSync('client/client-package.json')) fs.copyFileSync('client/client-package.json', 'dist/public/client-package.json')\" && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && node -e \"fs.mkdirSync('functions/express_app/dist', {recursive: true}); fs.copyFileSync('dist/index.js', 'functions/express_app/dist/index.js'); fs.cpSync('dist/public', 'functions/express_app/dist/public', {recursive: true})\"",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "vite build && node -e \"fs.copyFileSync('dist/public/index.html', 'dist/public/404.html')\"",
+    "build:server": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "node dist/index.js",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
