@@ -152,6 +152,131 @@ router.post('/problems/assign', async (req: Request, res: Response) => {
   }
 });
 
+// GET Team QR Codes & Access Details
+router.get('/teams/qr', async (_req: Request, res: Response) => {
+  try {
+    const teams = await dbAll(`
+      SELECT t.id, t.teamName, t.leaderName, t.leaderEmail, t.phone, t.college, t.assignedProblemId,
+             t.qrToken, t.secretCode, t.qrAccessEnabled, t.problemReleased, t.scannedAt, t.scanCount, t.createdAt,
+             p.title as assignedProblemTitle, p.track as assignedProblemTrack
+      FROM teams t
+      LEFT JOIN problems p ON t.assignedProblemId = p.id
+      ORDER BY t.createdAt DESC
+    `);
+
+    // Ensure all teams have qrToken and secretCode populated
+    for (const team of teams) {
+      if (!team.qrToken || !team.secretCode) {
+        team.qrToken = team.qrToken || `qr-${nanoid(16)}`;
+        team.secretCode = team.secretCode || `SEC-${nanoid(6).toUpperCase()}`;
+        await dbRun(`UPDATE teams SET qrToken = ?, secretCode = ? WHERE id = ?`, [team.qrToken, team.secretCode, team.id]);
+      }
+    }
+
+    res.json({ success: true, teams });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to fetch team QR details.' });
+  }
+});
+
+// POST Toggle QR Access (Global or Per-Team)
+router.post('/teams/qr-access', async (req: Request, res: Response) => {
+  const adminUser = (req as any).adminUser?.username || 'admin';
+  const { teamId, enabled } = req.body || {};
+  const isEnabled = Boolean(enabled);
+
+  try {
+    if (teamId) {
+      await dbRun(`UPDATE teams SET qrAccessEnabled = ? WHERE id = ?`, [isEnabled ? 1 : 0, teamId]);
+      await logAdminActivity(adminUser, 'QR_ACCESS_UPDATED', `Set QR code access for team '${teamId}' to ${isEnabled}`);
+    } else {
+      await dbRun(`UPDATE teams SET qrAccessEnabled = ?`, [isEnabled ? 1 : 0]);
+      await logAdminActivity(adminUser, 'QR_ACCESS_GLOBAL_UPDATED', `Set QR code access for ALL teams to ${isEnabled}`);
+    }
+
+    res.json({
+      success: true,
+      message: teamId
+        ? `QR Code access updated for team.`
+        : `QR Code access updated for all teams to ${isEnabled ? 'ENABLED' : 'DISABLED'}.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to update QR access state.' });
+  }
+});
+
+// POST Individual Team Problem Release
+router.post('/teams/release-individual', async (req: Request, res: Response) => {
+  const adminUser = (req as any).adminUser?.username || 'admin';
+  const { teamId, released } = req.body || {};
+  const isReleased = Boolean(released);
+
+  if (!teamId) {
+    res.status(400).json({ success: false, error: 'Team ID is required.' });
+    return;
+  }
+
+  try {
+    await dbRun(`UPDATE teams SET problemReleased = ? WHERE id = ?`, [isReleased ? 1 : 0, teamId]);
+    await logAdminActivity(
+      adminUser,
+      'INDIVIDUAL_RELEASE_UPDATED',
+      `Set problem release status for team '${teamId}' to ${isReleased ? 'RELEASED' : 'LOCKED'}`
+    );
+
+    res.json({
+      success: true,
+      message: `Individual problem release status updated successfully.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to update individual release status.' });
+  }
+});
+
+// POST Regenerate QR Token & Secret Code for Team
+router.post('/teams/regenerate-qr', async (req: Request, res: Response) => {
+  const adminUser = (req as any).adminUser?.username || 'admin';
+  const { teamId } = req.body || {};
+
+  if (!teamId) {
+    res.status(400).json({ success: false, error: 'Team ID is required.' });
+    return;
+  }
+
+  try {
+    const newToken = `qr-${nanoid(16)}`;
+    const newSecret = `SEC-${nanoid(6).toUpperCase()}`;
+
+    await dbRun(`UPDATE teams SET qrToken = ?, secretCode = ? WHERE id = ?`, [newToken, newSecret, teamId]);
+    await logAdminActivity(adminUser, 'QR_REGENERATED', `Regenerated QR Code token and secret code for team '${teamId}'`);
+
+    res.json({
+      success: true,
+      qrToken: newToken,
+      secretCode: newSecret,
+      message: 'New QR Code generated successfully for team.',
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to regenerate QR code token.' });
+  }
+});
+
+// GET QR Scan Audit Logs
+router.get('/scans', async (_req: Request, res: Response) => {
+  try {
+    const scans = await dbAll(`
+      SELECT t.id as teamId, t.teamName, t.scannedAt, t.scanCount, p.title as problemTitle
+      FROM teams t
+      LEFT JOIN problems p ON t.assignedProblemId = p.id
+      WHERE t.scannedAt IS NOT NULL
+      ORDER BY t.scannedAt DESC
+    `);
+    res.json({ success: true, scans });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to fetch QR scan audit log.' });
+  }
+});
+
 // GET Admin Analytics & Overview
 router.get('/analytics', async (_req: Request, res: Response) => {
   try {

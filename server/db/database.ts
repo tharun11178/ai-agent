@@ -73,6 +73,12 @@ export async function initDatabase(): Promise<void> {
       year TEXT,
       member2 TEXT,
       assignedProblemId TEXT,
+      qrToken TEXT UNIQUE,
+      secretCode TEXT,
+      qrAccessEnabled INTEGER NOT NULL DEFAULT 1,
+      problemReleased INTEGER NOT NULL DEFAULT 0,
+      scannedAt TEXT,
+      scanCount INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL
     );
   `);
@@ -80,6 +86,43 @@ export async function initDatabase(): Promise<void> {
   await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_name ON teams(teamName);`);
   await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_email ON teams(leaderEmail);`);
   await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_phone ON teams(phone);`);
+  await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_qr ON teams(qrToken);`);
+
+  // Migration for existing tables without new columns
+  const tableInfo = await dbAll(`PRAGMA table_info(teams)`);
+  const existingCols = tableInfo.map((c: any) => c.name);
+
+  if (!existingCols.includes('qrToken')) {
+    await dbRun(`ALTER TABLE teams ADD COLUMN qrToken TEXT`);
+  }
+  if (!existingCols.includes('secretCode')) {
+    await dbRun(`ALTER TABLE teams ADD COLUMN secretCode TEXT`);
+  }
+  if (!existingCols.includes('qrAccessEnabled')) {
+    await dbRun(`ALTER TABLE teams ADD COLUMN qrAccessEnabled INTEGER NOT NULL DEFAULT 1`);
+  }
+  if (!existingCols.includes('problemReleased')) {
+    await dbRun(`ALTER TABLE teams ADD COLUMN problemReleased INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!existingCols.includes('scannedAt')) {
+    await dbRun(`ALTER TABLE teams ADD COLUMN scannedAt TEXT`);
+  }
+  if (!existingCols.includes('scanCount')) {
+    await dbRun(`ALTER TABLE teams ADD COLUMN scanCount INTEGER NOT NULL DEFAULT 0`);
+  }
+
+  // Backfill missing tokens and secret codes for existing teams
+  const uninitializedTeams = await dbAll<{ id: string }>(
+    `SELECT id FROM teams WHERE qrToken IS NULL OR secretCode IS NULL`
+  );
+  for (const team of uninitializedTeams) {
+    const token = `qr-${nanoid(16)}`;
+    const secret = `SEC-${nanoid(6).toUpperCase()}`;
+    await dbRun(
+      `UPDATE teams SET qrToken = COALESCE(qrToken, ?), secretCode = COALESCE(secretCode, ?) WHERE id = ?`,
+      [token, secret, team.id]
+    );
+  }
 
   // Create Problems Table
   await dbRun(`

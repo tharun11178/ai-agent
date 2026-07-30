@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   Shield,
   Lock,
@@ -22,6 +23,14 @@ import {
   Sliders,
   ChevronLeft,
   ChevronRight,
+  QrCode,
+  KeyRound,
+  Printer,
+  RotateCw,
+  ShieldCheck,
+  CheckCircle2,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
@@ -37,6 +46,25 @@ interface Registration {
   year?: string;
   member2?: string;
   assignedProblemId?: string;
+  createdAt: string;
+}
+
+interface TeamQRData {
+  id: string;
+  teamName: string;
+  leaderName: string;
+  leaderEmail: string;
+  phone: string;
+  college: string;
+  assignedProblemId?: string;
+  assignedProblemTitle?: string;
+  assignedProblemTrack?: string;
+  qrToken: string;
+  secretCode: string;
+  qrAccessEnabled: number;
+  problemReleased: number;
+  scannedAt?: string;
+  scanCount: number;
   createdAt: string;
 }
 
@@ -81,8 +109,9 @@ export default function ControlCenter() {
   const [password, setPassword] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'registrations' | 'problems' | 'controls' | 'logs'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'registrations' | 'problems' | 'qrcodes' | 'controls' | 'logs'>('analytics');
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [teamQRs, setTeamQRs] = useState<TeamQRData[]>([]);
   const [problems, setProblems] = useState<ProblemStatement[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -128,11 +157,12 @@ export default function ControlCenter() {
     try {
       const headers = { Authorization: `Bearer ${authToken}` };
 
-      const [regRes, probRes, anaRes, logRes] = await Promise.all([
+      const [regRes, probRes, anaRes, logRes, qrRes] = await Promise.all([
         apiFetch('/api/admin/registrations', { headers }),
         apiFetch('/api/admin/problems', { headers }),
         apiFetch('/api/admin/analytics', { headers }),
         apiFetch('/api/admin/logs', { headers }),
+        apiFetch('/api/admin/teams/qr', { headers }),
       ]);
 
       if (regRes.status === 403 || probRes.status === 403 || anaRes.status === 403) {
@@ -145,6 +175,7 @@ export default function ControlCenter() {
       const probData = await probRes.json();
       const anaData = await anaRes.json();
       const logData = await logRes.json();
+      const qrData = await qrRes.json();
 
       if (regData.success) setRegistrations(regData.registrations);
       if (probData.success) setProblems(probData.problems);
@@ -153,11 +184,156 @@ export default function ControlCenter() {
         setConfigMaxTeams(anaData.analytics.maxTeams || 40);
       }
       if (logData.success) setLogs(logData.logs);
+      if (qrData.success) setTeamQRs(qrData.teams);
     } catch {
       toast.error('Failed to connect to admin API server.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // QR Code Management Handlers
+  const handleAssignProblemToTeam = async (teamId: string, problemId: string) => {
+    if (!token) return;
+    try {
+      const res = await apiFetch('/api/admin/problems/assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ teamId, problemId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Assigned problem statement to team successfully!');
+        fetchAdminData(token);
+      } else {
+        toast.error(data.error || 'Failed to assign problem.');
+      }
+    } catch {
+      toast.error('Server error assigning problem.');
+    }
+  };
+
+  const handleToggleQRAccess = async (teamId?: string, enabled?: boolean) => {
+    if (!token) return;
+    try {
+      const res = await apiFetch('/api/admin/teams/qr-access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ teamId, enabled }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || 'QR Access updated.');
+        fetchAdminData(token);
+      } else {
+        toast.error(data.error || 'Failed to update QR access.');
+      }
+    } catch {
+      toast.error('Server error updating QR access.');
+    }
+  };
+
+  const handleToggleIndividualRelease = async (teamId: string, released: boolean) => {
+    if (!token) return;
+    try {
+      const res = await apiFetch('/api/admin/teams/release-individual', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ teamId, released }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(released ? 'Problem statement released to team!' : 'Problem statement locked for team.');
+        fetchAdminData(token);
+      } else {
+        toast.error(data.error || 'Failed to update release status.');
+      }
+    } catch {
+      toast.error('Server error updating individual release status.');
+    }
+  };
+
+  const handleRegenerateQR = async (teamId: string) => {
+    if (!token) return;
+    try {
+      const res = await apiFetch('/api/admin/teams/regenerate-qr', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ teamId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('New QR Code & Secret Code generated successfully!');
+        fetchAdminData(token);
+      } else {
+        toast.error(data.error || 'Failed to regenerate QR.');
+      }
+    } catch {
+      toast.error('Server error regenerating QR code.');
+    }
+  };
+
+  const handlePrintQRCard = (team: TeamQRData) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const qrUrl = `${window.location.origin}/problem-statement?token=${team.qrToken}`;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>QR Passcode - ${team.teamName}</title>
+          <style>
+            body { font-family: sans-serif; text-align: center; padding: 40px; background: #fff; color: #1e293b; }
+            .card { border: 3px solid #0284c7; padding: 30px; border-radius: 16px; max-width: 400px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+            h2 { color: #0369a1; margin-bottom: 5px; }
+            .team-id { background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 20px; font-weight: bold; display: inline-block; margin-bottom: 15px; }
+            .qr-box { margin: 20px 0; padding: 15px; background: #f8fafc; border-radius: 12px; display: inline-block; }
+            .secret-box { background: #f1f5f9; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 16px; font-weight: bold; margin-top: 15px; }
+            .footer { font-size: 12px; color: #64748b; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h2>AI AGENT CHALLENGE 2026</h2>
+            <p style="margin: 0; font-[14px]">Official Team Problem Access Pass</p>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;" />
+            
+            <h3 style="margin: 5px 0;">${team.teamName}</h3>
+            <div class="team-id">ID: ${team.id}</div>
+            
+            <p style="font-size: 13px; margin: 5px 0;">Leader: <strong>${team.leaderName}</strong></p>
+            <p style="font-size: 13px; margin: 5px 0;">Institution: ${team.college}</p>
+            
+            <div class="qr-box">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}" width="180" height="180" />
+            </div>
+
+            <div class="secret-box">Secret Code: ${team.secretCode}</div>
+            <p style="font-size: 12px; color: #0284c7; margin-top: 8px;">Scan this QR code with camera or visit website to view problem statement.</p>
+
+            <div class="footer">Kuppam Engineering College — Department of AI & ML</div>
+          </div>
+          <script>
+            window.onload = function() { window.print(); };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -340,7 +516,7 @@ export default function ControlCenter() {
     }
 
     const headers = ['ID', 'Team Name', 'Leader Name', 'Leader Email', 'Phone', 'College', 'Department', 'Year', 'Member 2', 'Registered At'];
-    const rows = registrations.map((r) => [
+    const rows = registrations.map((r: Registration) => [
       r.id,
       `"${r.teamName.replace(/"/g, '""')}"`,
       `"${r.leaderName.replace(/"/g, '""')}"`,
@@ -353,7 +529,7 @@ export default function ControlCenter() {
       `"${r.createdAt}"`,
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    const csvContent = [headers.join(','), ...rows.map((row: string[]) => row.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -365,7 +541,7 @@ export default function ControlCenter() {
 
   // Search & Pagination Logic
   const filteredRegistrations = registrations.filter(
-    (reg) =>
+    (reg: Registration) =>
       reg.teamName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       reg.leaderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       reg.leaderEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -493,6 +669,7 @@ export default function ControlCenter() {
               { id: 'analytics', label: 'Analytics & Overview', icon: BarChart3 },
               { id: 'registrations', label: `Registrations (${registrations.length})`, icon: Users },
               { id: 'problems', label: 'Problem Statements', icon: FileText },
+              { id: 'qrcodes', label: `QR Code Access (${teamQRs.length})`, icon: QrCode },
               { id: 'controls', label: 'Event Controls', icon: Sliders },
               { id: 'logs', label: 'Activity Logs', icon: Activity },
             ].map((tab) => {
@@ -684,14 +861,14 @@ export default function ControlCenter() {
                     <div className="flex items-center gap-2">
                       <button
                         disabled={currentPage === 1}
-                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        onClick={() => setCurrentPage((prev: number) => Math.max(1, prev - 1))}
                         className="p-1.5 rounded bg-white/10 disabled:opacity-30"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </button>
                       <button
                         disabled={currentPage === totalPages}
-                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                        onClick={() => setCurrentPage((prev: number) => Math.min(totalPages, prev + 1))}
                         className="p-1.5 rounded bg-white/10 disabled:opacity-30"
                       >
                         <ChevronRight className="w-4 h-4" />
@@ -772,7 +949,7 @@ export default function ControlCenter() {
                 </div>
 
                 <div className="space-y-4">
-                  {problems.map((prob) => (
+                  {problems.map((prob: ProblemStatement) => (
                     <div key={prob.id} className="glass-card p-6 space-y-3 border-l-4 border-secondary">
                       <div className="flex items-start justify-between gap-4">
                         <div>
@@ -793,6 +970,211 @@ export default function ControlCenter() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB: QR CODE MANAGEMENT & AUDIT TRACKING */}
+          {activeTab === 'qrcodes' && (
+            <motion.div variants={itemVariants} className="space-y-6">
+              {/* Header Overview Bar */}
+              <div className="glass-card p-6 flex flex-col md:flex-row items-center justify-between gap-4 glow-border">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-bold flex items-center gap-2 text-cyan-300">
+                    <QrCode className="w-5 h-5 text-cyan-400" /> Team QR Code Access Suite
+                  </h3>
+                  <p className="text-xs text-foreground/60">
+                    Manage problem assignments, QR code access locks, individual releases, and monitor team scan logs.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                  <button
+                    onClick={() => handleToggleQRAccess(undefined, true)}
+                    className="btn-primary py-2 px-4 text-xs font-bold inline-flex items-center gap-2"
+                  >
+                    <ShieldCheck className="w-4 h-4" /> Enable All QR Codes
+                  </button>
+                  <button
+                    onClick={() => handleToggleQRAccess(undefined, false)}
+                    className="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold inline-flex items-center gap-2"
+                  >
+                    <Lock className="w-4 h-4" /> Disable All QR Codes
+                  </button>
+                </div>
+              </div>
+
+              {/* Stat Summary Pills */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="glass-card p-4 border-l-4 border-cyan-400">
+                  <p className="text-xs text-foreground/60 uppercase font-semibold">Total Teams</p>
+                  <p className="text-2xl font-bold text-cyan-300">{teamQRs.length} Teams</p>
+                </div>
+                <div className="glass-card p-4 border-l-4 border-green-400">
+                  <p className="text-xs text-foreground/60 uppercase font-semibold">QR Scanned Teams</p>
+                  <p className="text-2xl font-bold text-green-400">
+                    {teamQRs.filter((t: TeamQRData) => t.scannedAt).length} / {teamQRs.length} Scanned
+                  </p>
+                </div>
+                <div className="glass-card p-4 border-l-4 border-purple-400">
+                  <p className="text-xs text-foreground/60 uppercase font-semibold">Active Problems Uploaded</p>
+                  <p className="text-2xl font-bold text-purple-300">{problems.length} Statements</p>
+                </div>
+              </div>
+
+              {/* QR Cards Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {teamQRs.map((team: TeamQRData) => {
+                  const qrUrl = `${window.location.origin}/problem-statement?token=${team.qrToken}`;
+                  const isScanned = Boolean(team.scannedAt);
+                  const isQREnabled = team.qrAccessEnabled === 1;
+
+                  return (
+                    <div
+                      key={team.id}
+                      className={`glass-card p-6 space-y-5 border-l-4 transition-all ${
+                        isScanned
+                          ? 'border-green-500 bg-green-500/5'
+                          : isQREnabled
+                          ? 'border-cyan-400'
+                          : 'border-amber-500 opacity-80'
+                      }`}
+                    >
+                      {/* Top Header & Scan Badge */}
+                      <div className="flex items-start justify-between gap-4 border-b border-primary/10 pb-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono font-bold bg-primary/20 text-cyan-300 px-2.5 py-0.5 rounded-full border border-primary/30">
+                              {team.id}
+                            </span>
+                            {isScanned ? (
+                              <span className="text-[11px] font-bold bg-green-500/20 text-green-400 px-2.5 py-0.5 rounded-full border border-green-500/30 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" /> Scanned (#{team.scanCount})
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-bold bg-amber-500/20 text-amber-400 px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                                Pending Scan
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-xl font-bold text-foreground mt-1">{team.teamName}</h4>
+                          <p className="text-xs text-foreground/70">
+                            Leader: <strong>{team.leaderName}</strong> | {team.college}
+                          </p>
+                        </div>
+
+                        {/* Secret Code Badge */}
+                        <div className="text-right shrink-0">
+                          <p className="text-[10px] text-foreground/50 uppercase font-semibold">Secret Code</p>
+                          <span className="text-xs font-mono font-bold text-cyan-300 bg-white/10 px-2.5 py-1 rounded-md border border-primary/20 inline-block">
+                            {team.secretCode}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* QR Display & Controls */}
+                      <div className="flex flex-col sm:flex-row items-center gap-6">
+                        {/* QR Code Canvas */}
+                        <div className="p-3 bg-white rounded-2xl shadow-lg border border-primary/20 shrink-0 text-center">
+                          <QRCodeSVG value={qrUrl} size={130} level="H" />
+                          <p className="text-[10px] font-mono text-gray-600 mt-1">Scan for Problem</p>
+                        </div>
+
+                        {/* Controls & Assignments */}
+                        <div className="space-y-4 flex-1 w-full text-xs">
+                          {/* Problem Assignment Dropdown */}
+                          <div className="space-y-1">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-foreground/70">
+                              Assigned Problem Statement
+                            </label>
+                            <select
+                              value={team.assignedProblemId || ''}
+                              onChange={(e) => handleAssignProblemToTeam(team.id, e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-foreground font-semibold"
+                            >
+                              <option value="" className="bg-[#0F172A] text-foreground">
+                                -- Select Problem Statement --
+                              </option>
+                              {problems.map((prob: ProblemStatement) => (
+                                <option key={prob.id} value={prob.id} className="bg-[#0F172A] text-foreground">
+                                  {prob.title} ({prob.track})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Access & Release Toggles */}
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            <button
+                              onClick={() => handleToggleQRAccess(team.id, team.qrAccessEnabled !== 1)}
+                              className={`p-2 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors ${
+                                team.qrAccessEnabled === 1
+                                  ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300'
+                                  : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                              }`}
+                            >
+                              {team.qrAccessEnabled === 1 ? (
+                                <>
+                                  <ToggleRight className="w-4 h-4 text-cyan-400" /> QR Enabled
+                                </>
+                              ) : (
+                                <>
+                                  <ToggleLeft className="w-4 h-4 text-amber-400" /> QR Disabled
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              onClick={() => handleToggleIndividualRelease(team.id, team.problemReleased !== 1)}
+                              className={`p-2 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors ${
+                                team.problemReleased === 1
+                                  ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                                  : 'bg-purple-500/10 border-purple-500/30 text-purple-300'
+                              }`}
+                            >
+                              {team.problemReleased === 1 ? (
+                                <>
+                                  <ToggleRight className="w-4 h-4 text-green-400" /> Release Live
+                                </>
+                              ) : (
+                                <>
+                                  <ToggleLeft className="w-4 h-4 text-purple-300" /> Lock Problem
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Footer Actions */}
+                      <div className="border-t border-primary/10 pt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="text-[11px] text-foreground/60">
+                          {team.scannedAt ? (
+                            <span>Scanned at: {new Date(team.scannedAt).toLocaleString()}</span>
+                          ) : (
+                            <span>Not yet scanned by team</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handlePrintQRCard(team)}
+                            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-foreground text-[11px] font-semibold flex items-center gap-1.5 transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-cyan-400" /> Print Pass
+                          </button>
+                          <button
+                            onClick={() => handleRegenerateQR(team.id)}
+                            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-foreground text-[11px] font-semibold flex items-center gap-1.5 transition-colors"
+                            title="Generate new QR token & secret"
+                          >
+                            <RotateCw className="w-3.5 h-3.5 text-purple-400" /> Reset Token
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </motion.div>
           )}
@@ -867,7 +1249,7 @@ export default function ControlCenter() {
                 {logs.length === 0 ? (
                   <div className="p-8 text-center text-foreground/50">No activity logs recorded yet.</div>
                 ) : (
-                  logs.map((log) => (
+                  logs.map((log: LogEntry) => (
                     <div key={log.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/5 transition-colors">
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">

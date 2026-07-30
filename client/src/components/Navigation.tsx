@@ -12,7 +12,7 @@ export function Navigation() {
     { label: 'About', path: '/about' },
     { label: 'Rules', path: '/rules' },
     { label: 'Schedule', path: '/schedule' },
-    { label: 'Problem Statement', path: '/problem-statement' },
+    { label: 'Scan Problem Statement', path: '/problem-statement' },
     { label: 'Contact', path: '/faq' },
   ];
 
