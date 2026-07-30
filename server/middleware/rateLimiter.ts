@@ -12,18 +12,6 @@ export const publicApiLimiter = rateLimit({
   },
 });
 
-// Strict rate limiter for team registration submissions
-export const registerLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // 10 registration submissions per 15 minutes per IP
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: 'Too many registration requests from this IP. Please try again after 15 minutes.',
-  },
-});
-
 // Strict rate limiter for admin login attempts (Brute force protection)
 export const adminLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes

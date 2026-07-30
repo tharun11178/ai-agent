@@ -98,28 +98,17 @@ export function HeroSection() {
                 </p>
               </motion.div>
 
-              {/* Call to Action Buttons */}
+              {/* Call to Action Button */}
               <motion.div
                 variants={itemVariants}
                 className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2"
               >
-                {/* 📋 Problem Statement Button */}
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => navigate('/problem-statement')}
-                  className="btn-primary text-sm sm:text-base font-bold shadow-[0_0_30px_rgba(59,130,246,0.6)] border-blue-400/60"
-                >
-                  <Rocket className="w-5 h-5 text-cyan-300 animate-bounce" />
-                  <span>📋 Explore Problem Statement</span>
-                </motion.button>
-
                 {/* 🏫 Visit College Website Button */}
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={handleVisitCollege}
-                  className="btn-secondary text-sm sm:text-base font-bold shadow-[0_0_20px_rgba(6,182,212,0.3)] border-cyan-400/50"
+                  className="btn-primary text-sm sm:text-base font-bold shadow-[0_0_30px_rgba(59,130,246,0.6)] border-blue-400/60 inline-flex items-center justify-center gap-2"
                 >
                   <span>🏫 Visit College Website</span>
                   <ExternalLink className="w-4 h-4 text-cyan-300 ml-1" />

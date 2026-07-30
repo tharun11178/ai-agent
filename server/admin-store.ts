@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { nanoid } from "nanoid";
-import { getRegistrations } from "./registration-store";
 
 export interface ProblemStatement {
   id: string;
@@ -192,22 +191,15 @@ export function getAdminAnalyticsStore(token: string) {
     throw new Error("403: Forbidden - Admin authentication required");
   }
 
-  const registrations = getRegistrations();
   const problems = getProblemsStore(token);
 
-  const collegesCount = new Set(registrations.map((r) => r.college.toLowerCase())).size;
-  const totalParticipants = registrations.reduce(
-    (acc, reg) => acc + (reg.member2 ? 2 : 1),
-    0
-  );
-
   return {
-    totalTeams: registrations.length,
-    totalParticipants,
-    collegesRepresented: collegesCount,
+    totalTeams: 0,
+    totalParticipants: 0,
+    collegesRepresented: 0,
     totalProblems: problems.length,
     problemsReleased: problems.some((p) => p.released),
-    lastRegistration: registrations.length > 0 ? registrations[registrations.length - 1].createdAt : null,
+    lastRegistration: null,
   };
 }
 

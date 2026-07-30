@@ -213,7 +213,7 @@ export default function Prizes() {
             {[
               {
                 title: 'Cash Prizes',
-                description: 'Winners will receive cash prizes transferred directly to their registered bank accounts within 7 days of the competition.',
+                description: 'Winners will receive cash prizes transferred directly to their bank accounts within 7 days of the competition.',
               },
               {
                 title: 'Internship Opportunities',

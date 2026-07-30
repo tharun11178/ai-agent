@@ -45,7 +45,7 @@ export default function Dashboard() {
       icon: Users,
       title: 'Team Status',
       status: 'Active',
-      details: 'Your team is registered and ready to compete',
+      details: 'Your team is ready to compete',
       color: 'text-accent',
     },
     {

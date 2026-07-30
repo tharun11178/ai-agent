@@ -159,10 +159,10 @@ export default function Home() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('/problem-statement')}
+              onClick={() => window.open('https://kec.ac.in', '_blank', 'noopener,noreferrer')}
               className="btn-primary"
             >
-              Problem Statement
+              🏫 Visit College Website
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.05 }}

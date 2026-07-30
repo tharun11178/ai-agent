@@ -17,15 +17,15 @@ export default function Schedule() {
 
   const scheduleEvents = [
     {
-      phase: 'Spot Registration & Check-in',
+      phase: 'Arrival & Check-in',
       date: 'August 8, 2026',
       time: '10:00 AM IST',
-      description: 'On-site check-in and spot registration for participants at the venue.',
+      description: 'On-site check-in and seating setup for participants at the venue.',
       icon: Calendar,
       status: 'upcoming',
       details: [
         'On-site check-in & badge collection',
-        'Spot registration for teams',
+        'Team verification & seating',
         'Venue seating & network setup',
         'Participant welcome kit distribution',
       ],
@@ -261,7 +261,7 @@ export default function Schedule() {
                 color: 'from-primary/30 to-secondary/30',
               },
               {
-                label: 'Check-in & Spot Reg',
+                label: 'Check-in & Briefing',
                 date: '10:00 AM IST',
                 color: 'from-secondary/30 to-accent/30',
               },
@@ -307,11 +307,11 @@ export default function Schedule() {
             {[
               {
                 question: 'Is this a one-day or multi-day event?',
-                answer: 'The AI Agent Challenge is a single-day event taking place on August 8, 2026, featuring everything from registration to live demos and results.',
+                answer: 'The AI Agent Challenge is a single-day event taking place on August 8, 2026, featuring everything from briefing to live demos and results.',
               },
               {
-                question: 'Can I do spot registration on the event day?',
-                answer: 'Yes! Spot registration and check-in are open at the venue starting at 10:00 AM IST on August 8, 2026.',
+                question: 'What time does check-in open?',
+                answer: 'Check-in and venue setup open at 10:00 AM IST on August 8, 2026.',
               },
               {
                 question: 'When will the problem statement be released?',
@@ -326,8 +326,8 @@ export default function Schedule() {
                 answer: 'Results will be announced on the spot at 2:15 PM IST during the closing ceremony on August 8, 2026.',
               },
               {
-                question: 'Can I update team details before the event starts?',
-                answer: 'Yes, team details can be finalized or updated during spot registration prior to 10:30 AM IST.',
+                question: 'What should teams bring on the event day?',
+                answer: 'Teams should bring laptops with preferred AI tools and development environments pre-configured.',
               },
             ].map((faq, i) => (
               <motion.div
