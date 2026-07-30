@@ -15,21 +15,72 @@ import {
   ArrowRight,
   ShieldCheck,
   HelpCircle,
+  Lock,
+  RefreshCw,
+  Clock,
+  Printer,
+  AlertTriangle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { apiFetch } from '@/lib/api';
+
+interface ProblemData {
+  id: string;
+  title: string;
+  description: string;
+  objectives: string[];
+  constraints: string[];
+  deliverables: string[];
+  updatedAt: string;
+}
 
 export default function ProblemStatementPage() {
   const [, navigate] = useLocation();
+  const [loading, setLoading] = useState(true);
+  const [released, setReleased] = useState(false);
+  const [problem, setProblem] = useState<ProblemData | null>(null);
+  const [message, setMessage] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const problemUrl = typeof window !== 'undefined' ? `${window.location.origin}/problem-statement` : '';
+  useEffect(() => {
+    fetchProblemStatus();
+  }, []);
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(problemUrl);
+  const fetchProblemStatus = async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/api/problem-statement');
+      const data = await res.json();
+      if (data.success) {
+        setReleased(data.released);
+        setProblem(data.problem || null);
+        if (data.message) setMessage(data.message);
+      } else {
+        setReleased(false);
+        setProblem(null);
+      }
+    } catch {
+      setReleased(false);
+      setProblem(null);
+      toast.error('Unable to fetch release status from server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopyProblemText = () => {
+    if (!problem) return;
+    const text = `AI AGENT CHALLENGE 2026 - PROBLEM STATEMENT\n\nTitle: ${problem.title}\n\nDescription:\n${problem.description}\n\nObjectives:\n${problem.objectives.map((o) => `• ${o}`).join('\n')}\n\nConstraints:\n${problem.constraints.map((c) => `• ${c}`).join('\n')}\n\nDeliverables:\n${problem.deliverables.map((d) => `• ${d}`).join('\n')}`;
+
+    navigator.clipboard.writeText(text);
     setCopied(true);
-    toast.success('Problem statement URL copied to clipboard!');
+    toast.success('Problem statement text copied to clipboard!');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handlePrintPDF = () => {
+    window.print();
   };
 
   const containerVariants = {
@@ -45,25 +96,107 @@ export default function ProblemStatementPage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   };
 
-  const objectives = [
-    'Understand user queries using Artificial Intelligence.',
-    'Provide accurate, relevant, and meaningful responses.',
-    'Maintain a clean, intuitive, and responsive user interface.',
-    'Demonstrate practical and efficient AI integration.',
-    'Present a working, end-to-end functional prototype.',
-  ];
+  // State 1: Loading
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-32 pb-20 flex flex-col items-center justify-center container text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 animate-pulse">
+          <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+        </div>
+        <h2 className="text-xl font-bold text-white">Checking Release Status...</h2>
+        <p className="text-sm text-foreground/60">Connecting to AI Agent Challenge server</p>
+      </div>
+    );
+  }
 
-  const deliverables = [
-    { title: 'Functional Application', icon: Laptop, desc: 'A working frontend/backend prototype ready for evaluation.' },
-    { title: 'Source Code', icon: Code2, desc: 'Clean, well-structured codebase with setup instructions.' },
-    { title: 'AI Integration', icon: Sparkles, desc: 'Effective integration of LLMs, NLP models, or intelligent agents.' },
-    { title: 'Live Demonstration', icon: Presentation, desc: 'A live demo showcasing core features to the judges.' },
-    { title: 'Project Explanation', icon: PackageCheck, desc: 'A concise summary explaining architecture and approach.' },
-  ];
+  // State 2: Unreleased Waiting Screen
+  if (!released || !problem) {
+    return (
+      <div className="min-h-screen pt-24 pb-20 relative overflow-hidden">
+        {/* Background Ambient Glow */}
+        <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-500/10 rounded-full blur-[140px]" />
+          <div className="absolute bottom-1/4 right-10 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[120px]" />
+        </div>
 
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="container max-w-3xl space-y-8 text-center pt-8"
+        >
+          {/* Back Navigation */}
+          <motion.div variants={itemVariants} className="flex justify-start">
+            <button
+              onClick={() => navigate('/')}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" /> Back to Home
+            </button>
+          </motion.div>
+
+          {/* Animated Lock Icon */}
+          <motion.div variants={itemVariants} className="relative inline-block">
+            <div className="w-24 h-24 rounded-3xl bg-red-500/10 border-2 border-red-500/40 flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(239,68,68,0.25)] relative">
+              <Lock className="w-12 h-12 text-red-400 animate-bounce" />
+            </div>
+            <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-[10px] font-extrabold uppercase tracking-widest text-red-300 whitespace-nowrap">
+              LOCKED & SEALED
+            </span>
+          </motion.div>
+
+          {/* Title & Message */}
+          <motion.div variants={itemVariants} className="space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold uppercase tracking-wider">
+              <Clock className="w-3.5 h-3.5 animate-pulse" /> Official Commencement Window
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white">
+              Problem Statement <span className="text-red-400">Not Released Yet</span>
+            </h1>
+
+            <div className="glass-card p-6 sm:p-8 space-y-4 border-l-4 border-amber-500 max-w-2xl mx-auto text-left">
+              <p className="text-base sm:text-lg text-foreground/90 font-medium leading-relaxed">
+                The problem statement has not been released by the event organizers.
+              </p>
+              <p className="text-sm text-foreground/70 leading-relaxed">
+                Please wait until the official inauguration and commencement announcement.
+              </p>
+              <p className="text-xs text-amber-300/90 font-mono bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                💡 Tip: Once announced, simply click the <strong>Refresh Status</strong> button below or scan the QR code again to reveal the live challenge.
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Action Buttons */}
+          <motion.div variants={itemVariants} className="flex flex-wrap items-center justify-center gap-4 pt-2">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={fetchProblemStatus}
+              className="btn-primary py-3 px-6 text-sm font-bold inline-flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4 text-cyan-300" /> Refresh Release Status
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/rules')}
+              className="btn-secondary py-3 px-6 text-sm font-bold inline-flex items-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4 text-purple-400" /> Review Competition Rules
+            </motion.button>
+          </motion.div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // State 3: Released Official Problem Statement
   return (
     <div className="min-h-screen pt-24 pb-20">
-      {/* Background Decorative Glow */}
+      {/* Background Glow */}
       <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[120px]" />
         <div className="absolute bottom-1/4 right-10 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[100px]" />
@@ -84,16 +217,24 @@ export default function ProblemStatementPage() {
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={handleCopyLink}
+              onClick={handleCopyProblemText}
               className="px-4 py-2 rounded-xl bg-white/5 border border-primary/20 hover:border-cyan-400 text-xs font-semibold text-foreground/80 hover:text-white inline-flex items-center gap-2 transition-all"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
-              {copied ? 'Copied!' : 'Copy Link'}
+              {copied ? 'Copied!' : 'Copy Statement'}
             </button>
-            <span className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-bold uppercase tracking-wider">
-              Official Track 2026
+
+            <button
+              onClick={handlePrintPDF}
+              className="px-4 py-2 rounded-xl bg-white/5 border border-primary/20 hover:border-purple-400 text-xs font-semibold text-foreground/80 hover:text-white inline-flex items-center gap-2 transition-all"
+            >
+              <Printer className="w-3.5 h-3.5 text-purple-400" /> Print / PDF
+            </button>
+
+            <span className="px-3 py-1 rounded-full bg-green-500/10 border border-green-400/40 text-green-300 text-xs font-extrabold uppercase tracking-wider inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-ping" /> 🟢 OFFICIAL & LIVE
             </span>
           </div>
         </motion.div>
@@ -107,7 +248,7 @@ export default function ProblemStatementPage() {
             Official <span className="gradient-text">Problem Statement</span>
           </h1>
           <p className="text-lg text-foreground/80 leading-relaxed">
-            Review the challenge specifications, project objectives, and evaluation deliverables below.
+            The problem statement is officially live. Review requirements, objectives, and deliverables.
           </p>
         </motion.div>
 
@@ -127,60 +268,74 @@ export default function ProblemStatementPage() {
               <div>
                 <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">Main Challenge Title</span>
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white">
-                  Build an AI-Powered Smart Campus Assistant
+                  {problem.title}
                 </h2>
               </div>
             </div>
 
             <p className="text-base sm:text-lg text-foreground/90 leading-relaxed pt-3 border-t border-white/10">
-              Design and develop an intelligent AI-powered assistant that helps students and faculty by answering queries related to academics, departments, campus facilities, event schedules, placements, and general college information.
-            </p>
-            <p className="text-sm sm:text-base text-foreground/70 leading-relaxed">
-              Your solution should demonstrate the use of Artificial Intelligence to solve real-world problems while providing an intuitive and user-friendly experience.
+              {problem.description}
             </p>
           </div>
 
           {/* Objectives Grid */}
-          <div className="space-y-4 pt-6 border-t border-white/10">
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <Target className="w-5 h-5 text-cyan-400" /> Key Objectives
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {objectives.map((obj, i) => (
-                <div
-                  key={i}
-                  className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-cyan-400/40 transition-colors flex items-start gap-3"
-                >
-                  <CheckCircle2 className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
-                  <span className="text-sm font-medium text-foreground/90">{obj}</span>
-                </div>
-              ))}
+          {problem.objectives && problem.objectives.length > 0 && (
+            <div className="space-y-4 pt-6 border-t border-white/10">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Target className="w-5 h-5 text-cyan-400" /> Key Objectives
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {problem.objectives.map((obj, i) => (
+                  <div
+                    key={i}
+                    className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-cyan-400/40 transition-colors flex items-start gap-3"
+                  >
+                    <CheckCircle2 className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+                    <span className="text-sm font-medium text-foreground/90">{obj}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Constraints Section */}
+          {problem.constraints && problem.constraints.length > 0 && (
+            <div className="space-y-4 pt-6 border-t border-white/10">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-400" /> Development Constraints & Guidelines
+              </h3>
+              <div className="space-y-2">
+                {problem.constraints.map((con, i) => (
+                  <div key={i} className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm text-amber-200/90 flex items-start gap-2">
+                    <span className="text-amber-400 font-bold">•</span>
+                    <span>{con}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Deliverables Section */}
-          <div className="space-y-4 pt-6 border-t border-white/10">
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <PackageCheck className="w-5 h-5 text-purple-400" /> Project Deliverables
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {deliverables.map((item, i) => {
-                const Icon = item.icon;
-                return (
+          {problem.deliverables && problem.deliverables.length > 0 && (
+            <div className="space-y-4 pt-6 border-t border-white/10">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <PackageCheck className="w-5 h-5 text-purple-400" /> Required Deliverables
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {problem.deliverables.map((item, i) => (
                   <div
                     key={i}
                     className="p-5 rounded-xl bg-white/5 border border-white/10 hover:border-purple-400/40 transition-all space-y-2 group"
                   >
                     <div className="w-10 h-10 rounded-lg bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 group-hover:scale-110 transition-transform">
-                      <Icon className="w-5 h-5" />
+                      <Code2 className="w-5 h-5" />
                     </div>
-                    <h4 className="font-bold text-white text-base">{item.title}</h4>
-                    <p className="text-xs text-foreground/70 leading-relaxed">{item.desc}</p>
+                    <h4 className="font-bold text-white text-base">{item}</h4>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </motion.div>
 
         {/* Action Buttons & Guidance Cards */}
@@ -188,7 +343,7 @@ export default function ProblemStatementPage() {
           <div className="glass-card p-6 space-y-4 border-l-4 border-cyan-400 flex flex-col justify-between">
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-cyan-400" /> Event Rules & Judging Criteria
+                <ShieldCheck className="w-5 h-5 text-cyan-400" /> Event Rules & Criteria
               </h3>
               <p className="text-sm text-foreground/70">
                 Review competition rules, clarification window details, and judging parameters.
@@ -205,10 +360,10 @@ export default function ProblemStatementPage() {
           <div className="glass-card p-6 space-y-4 border-l-4 border-purple-400 flex flex-col justify-between">
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-purple-400" /> Timeline & Schedule
+                <HelpCircle className="w-5 h-5 text-purple-400" /> Competition Schedule
               </h3>
               <p className="text-sm text-foreground/70">
-                Check check-in times, competition start hours, submission deadlines, and demo slots.
+                Check submission deadlines, judging slots, and results ceremony schedule.
               </p>
             </div>
             <button

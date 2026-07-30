@@ -80,6 +80,22 @@ export async function initDatabase(): Promise<void> {
   await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_email ON teams(leaderEmail);`);
   await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_phone ON teams(phone);`);
 
+  // Create Problems Table for Admin Release Control
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS problems (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      objectives TEXT NOT NULL,
+      constraints TEXT NOT NULL,
+      deliverables TEXT NOT NULL,
+      released INTEGER NOT NULL DEFAULT 0,
+      releasedAt TEXT,
+      updatedAt TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    );
+  `);
+
   // Create Activity Logs Table
   await dbRun(`
     CREATE TABLE IF NOT EXISTS activity_logs (
@@ -113,6 +129,42 @@ export async function initDatabase(): Promise<void> {
   const newHash = bcrypt.hashSync(adminPass, 10);
   await dbRun(`INSERT OR REPLACE INTO event_config (key, value) VALUES ('adminPasswordHash', ?)`, [newHash]);
   await dbRun(`INSERT OR REPLACE INTO event_config (key, value) VALUES ('adminUsername', 'admin')`);
+
+  // Seed Default Official Problem Statement if table is empty
+  const problemCount = await dbGet<{ count: number }>(`SELECT COUNT(*) as count FROM problems`);
+  if (problemCount && problemCount.count === 0) {
+    const now = new Date().toISOString();
+    await dbRun(
+      `INSERT INTO problems (id, title, description, objectives, constraints, deliverables, released, releasedAt, updatedAt, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
+      [
+        'prob-official-2026',
+        'Build an AI-Powered Smart Campus Assistant',
+        'Design and develop an intelligent AI-powered assistant that helps students and faculty by answering queries related to academics, departments, campus facilities, event schedules, placements, and general college information. Your solution should demonstrate the use of Artificial Intelligence to solve real-world problems while providing an intuitive and user-friendly experience.',
+        JSON.stringify([
+          'Understand user queries using Artificial Intelligence.',
+          'Provide accurate, relevant, and meaningful responses.',
+          'Maintain a clean, intuitive, and responsive user interface.',
+          'Demonstrate practical and efficient AI integration.',
+          'Present a working, end-to-end functional prototype.',
+        ]),
+        JSON.stringify([
+          'Development must begin only after official commencement of the event.',
+          'Participants may use any preferred AI framework, language, or model.',
+          'All submitted solutions must be original work created during the competition window.',
+        ]),
+        JSON.stringify([
+          'Functional Application Prototype',
+          'Clean Source Code Repository',
+          'AI Integration & Logic Implementation',
+          'Live Judge Demonstration',
+          'Brief Project Architecture Summary',
+        ]),
+        now,
+        now,
+      ]
+    );
+  }
 }
 
 // Log activity helper

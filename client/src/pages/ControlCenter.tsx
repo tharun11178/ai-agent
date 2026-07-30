@@ -17,6 +17,16 @@ import {
   Sliders,
   ChevronLeft,
   ChevronRight,
+  FileText,
+  Lock,
+  Unlock,
+  PlusCircle,
+  Edit,
+  Sparkles,
+  Target,
+  AlertTriangle,
+  PackageCheck,
+  CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
@@ -42,7 +52,22 @@ interface Analytics {
   registrationOpen: boolean;
   totalParticipants: number;
   collegesRepresented: number;
+  problemsReleased: boolean;
+  totalProblems: number;
   lastRegistration: string | null;
+}
+
+interface ProblemStatement {
+  id: string;
+  title: string;
+  description: string;
+  objectives: string[];
+  constraints: string[];
+  deliverables: string[];
+  released: boolean;
+  releasedAt?: string;
+  updatedAt: string;
+  createdAt: string;
 }
 
 interface LogEntry {
@@ -59,8 +84,9 @@ export default function ControlCenter() {
   const [password, setPassword] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'registrations' | 'controls' | 'logs'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'registrations' | 'problems' | 'controls' | 'logs'>('analytics');
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [problems, setProblems] = useState<ProblemStatement[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,9 +96,19 @@ export default function ControlCenter() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Selected Team Details Modal
+  // Selected Team Details Modal & Delete Confirmation
   const [selectedTeam, setSelectedTeam] = useState<Registration | null>(null);
   const [deleteTeamId, setDeleteTeamId] = useState<string | null>(null);
+
+  // Problem Form State
+  const [editingProblemId, setEditingProblemId] = useState<string | null>(null);
+  const [probTitle, setProbTitle] = useState('');
+  const [probDesc, setProbDesc] = useState('');
+  const [probObjectives, setProbObjectives] = useState('');
+  const [probConstraints, setProbConstraints] = useState('');
+  const [probDeliverables, setProbDeliverables] = useState('');
+  const [savingProblem, setSavingProblem] = useState(false);
+  const [previewProblem, setPreviewProblem] = useState<ProblemStatement | null>(null);
 
   // Event Config Form
   const [configMaxTeams, setConfigMaxTeams] = useState<number>(100);
@@ -99,13 +135,14 @@ export default function ControlCenter() {
     try {
       const headers = { Authorization: `Bearer ${authToken}` };
 
-      const [regRes, anaRes, logRes] = await Promise.all([
+      const [regRes, anaRes, probRes, logRes] = await Promise.all([
         apiFetch('/api/admin/registrations', { headers }),
         apiFetch('/api/admin/analytics', { headers }),
+        apiFetch('/api/admin/problems', { headers }),
         apiFetch('/api/admin/logs', { headers }),
       ]);
 
-      if (regRes.status === 403 || anaRes.status === 403) {
+      if (regRes.status === 403 || anaRes.status === 403 || probRes.status === 403) {
         handleLogout();
         toast.error('403 Forbidden: Admin session expired or invalid. Please log in again.');
         return;
@@ -113,12 +150,26 @@ export default function ControlCenter() {
 
       const regData = await regRes.json();
       const anaData = await anaRes.json();
+      const probData = await probRes.json();
       const logData = await logRes.json();
 
       if (regData.success) setRegistrations(regData.registrations);
       if (anaData.success) {
         setAnalytics(anaData.analytics);
         setConfigMaxTeams(anaData.analytics.maxTeams || 40);
+      }
+      if (probData.success) {
+        setProblems(probData.problems);
+        // Pre-fill editor with first problem if available
+        if (probData.problems.length > 0 && !editingProblemId) {
+          const first = probData.problems[0];
+          setEditingProblemId(first.id);
+          setProbTitle(first.title);
+          setProbDesc(first.description);
+          setProbObjectives(Array.isArray(first.objectives) ? first.objectives.join('\n') : '');
+          setProbConstraints(Array.isArray(first.constraints) ? first.constraints.join('\n') : '');
+          setProbDeliverables(Array.isArray(first.deliverables) ? first.deliverables.join('\n') : '');
+        }
       }
       if (logData.success) setLogs(logData.logs);
     } catch {
@@ -164,6 +215,98 @@ export default function ControlCenter() {
     sessionStorage.removeItem('admin_jwt_token');
     setToken(null);
     toast.info('Logged out from admin panel.');
+  };
+
+  // 1-Click Toggle Release / Lock Problem Statement
+  const handleToggleRelease = async (released: boolean) => {
+    if (!token) return;
+    try {
+      const response = await apiFetch('/api/admin/problems/release', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ released }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(released ? '🚀 Problem statement is now LIVE for all participants!' : '🔒 Problem statement is now locked.');
+        fetchAdminData(token);
+      } else {
+        toast.error(data.error || 'Failed to update release status.');
+      }
+    } catch {
+      toast.error('Failed to communicate with server.');
+    }
+  };
+
+  // Save / Update Problem Statement Draft
+  const handleSaveProblem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    if (!probTitle || !probDesc) {
+      toast.error('Title and description are required.');
+      return;
+    }
+
+    setSavingProblem(true);
+    try {
+      const response = await apiFetch('/api/admin/problems', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          id: editingProblemId,
+          title: probTitle,
+          description: probDesc,
+          objectives: probObjectives.split('\n').map((s) => s.trim()).filter(Boolean),
+          constraints: probConstraints.split('\n').map((s) => s.trim()).filter(Boolean),
+          deliverables: probDeliverables.split('\n').map((s) => s.trim()).filter(Boolean),
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(editingProblemId ? 'Problem statement updated successfully!' : 'New problem draft created!');
+        fetchAdminData(token);
+      } else {
+        toast.error(data.error || 'Failed to save problem statement.');
+      }
+    } catch {
+      toast.error('Server error while saving problem statement.');
+    } finally {
+      setSavingProblem(false);
+    }
+  };
+
+  // Delete Problem Statement
+  const handleDeleteProblem = async (id: string) => {
+    if (!token) return;
+    try {
+      const res = await apiFetch(`/api/admin/problems/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Problem statement deleted.');
+        setEditingProblemId(null);
+        setProbTitle('');
+        setProbDesc('');
+        setProbObjectives('');
+        setProbConstraints('');
+        setProbDeliverables('');
+        fetchAdminData(token);
+      } else {
+        toast.error(data.error || 'Delete failed.');
+      }
+    } catch {
+      toast.error('Server error while deleting problem.');
+    }
   };
 
   // Delete Team Registration
@@ -327,6 +470,8 @@ export default function ControlCenter() {
     );
   }
 
+  const isReleased = analytics?.problemsReleased || false;
+
   return (
     <div className="min-h-screen pt-20 pb-20">
       <section className="py-10 border-b border-primary/10 bg-primary/5">
@@ -372,6 +517,7 @@ export default function ControlCenter() {
             {[
               { id: 'analytics', label: 'Analytics & Overview', icon: BarChart3 },
               { id: 'registrations', label: `Registrations (${registrations.length})`, icon: Users },
+              { id: 'problems', label: 'Problem Statements', icon: FileText },
               { id: 'controls', label: 'Event Controls', icon: Sliders },
               { id: 'logs', label: 'Activity Logs', icon: Activity },
             ].map((tab) => {
@@ -396,7 +542,7 @@ export default function ControlCenter() {
           {/* TAB 1: ANALYTICS & OVERVIEW */}
           {activeTab === 'analytics' && analytics && (
             <motion.div variants={itemVariants} className="space-y-8">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="glass-card p-6 space-y-2 border-l-4 border-primary">
                   <p className="text-sm font-medium text-foreground/60">Registered Teams</p>
                   <p className="text-4xl font-bold text-primary">{analytics.totalTeams}</p>
@@ -416,19 +562,43 @@ export default function ControlCenter() {
                   <p className="text-4xl font-bold text-accent">{analytics.totalParticipants}</p>
                   <p className="text-xs text-foreground/50">{analytics.collegesRepresented} Colleges Represented</p>
                 </div>
+
+                <div className={`glass-card p-6 space-y-2 border-l-4 ${isReleased ? 'border-green-500' : 'border-red-500'}`}>
+                  <p className="text-sm font-medium text-foreground/60">Problem Status</p>
+                  <p className={`text-4xl font-bold ${isReleased ? 'text-green-400' : 'text-red-400'}`}>
+                    {isReleased ? 'RELEASED' : 'LOCKED'}
+                  </p>
+                  <p className="text-xs text-foreground/50">
+                    {isReleased ? '🟢 Accessible to participants' : '🔴 Hidden / Waiting Screen'}
+                  </p>
+                </div>
               </div>
 
               {/* Quick Actions Panel */}
               <div className="glass-card p-8 space-y-6 glow-border">
                 <h3 className="text-2xl font-bold">Quick Event Actions</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleToggleRelease(!isReleased)}
+                    className={`p-4 rounded-xl font-semibold border flex items-center justify-between ${
+                      isReleased
+                        ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
+                        : 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20'
+                    }`}
+                  >
+                    <span>{isReleased ? 'Lock Problem Statement' : 'Release Problem Statement'}</span>
+                    {isReleased ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
+                  </motion.button>
+
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleUpdateConfig('registrationOpen', !analytics.registrationOpen)}
                     className={`p-4 rounded-xl font-semibold border flex items-center justify-between ${
                       analytics.registrationOpen
-                        ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
+                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
                         : 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
                     }`}
                   >
@@ -560,7 +730,233 @@ export default function ControlCenter() {
             </motion.div>
           )}
 
-          {/* TAB 3: EVENT CONTROLS */}
+          {/* TAB 3: PROBLEM STATEMENT RELEASE SYSTEM */}
+          {activeTab === 'problems' && (
+            <motion.div variants={itemVariants} className="space-y-8">
+              {/* Release Status Banner & One-Click Switch */}
+              <div className={`glass-card p-6 md:p-8 space-y-6 glow-border border-l-8 ${isReleased ? 'border-green-500' : 'border-red-500'}`}>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest inline-flex items-center gap-1.5 ${
+                        isReleased ? 'bg-green-500/20 text-green-300 border border-green-500/40' : 'bg-red-500/20 text-red-300 border border-red-500/40'
+                      }`}>
+                        {isReleased ? '🟢 LIVE / ACCESSIBLE' : '🔴 LOCKED / WAITING SCREEN'}
+                      </span>
+                    </div>
+
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+                      Problem Statement Release Status
+                    </h2>
+
+                    <p className="text-sm text-foreground/70 max-w-2xl">
+                      {isReleased
+                        ? 'The problem statement is currently RELEASED. Anyone scanning the QR code or visiting /problem-statement can view the challenge specifications.'
+                        : 'The problem statement is currently LOCKED. Anyone scanning the QR code sees the waiting screen ("Problem Statement Not Released Yet").'}
+                    </p>
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleToggleRelease(!isReleased)}
+                    className={`py-4 px-6 rounded-2xl font-extrabold text-sm border shadow-lg inline-flex items-center justify-center gap-3 shrink-0 ${
+                      isReleased
+                        ? 'bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30 shadow-red-500/20'
+                        : 'bg-green-500/20 border-green-500/50 text-green-300 hover:bg-green-500/30 shadow-green-500/20'
+                    }`}
+                  >
+                    {isReleased ? (
+                      <>
+                        <Lock className="w-5 h-5" /> 🔒 Lock & Hide Problem Statement
+                      </>
+                    ) : (
+                      <>
+                        <Unlock className="w-5 h-5 text-green-400" /> 🚀 Release Problem Statement Now
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Editor & Preview Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left: Problem Statements List */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-cyan-400" /> Problem Drafts
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setEditingProblemId(null);
+                        setProbTitle('');
+                        setProbDesc('');
+                        setProbObjectives('');
+                        setProbConstraints('');
+                        setProbDeliverables('');
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-bold hover:bg-cyan-500/20 inline-flex items-center gap-1.5"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" /> New Draft
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {problems.length === 0 ? (
+                      <div className="glass-card p-6 text-center text-foreground/50 text-sm">
+                        No problem statement drafts found. Create one below.
+                      </div>
+                    ) : (
+                      problems.map((prob) => (
+                        <div
+                          key={prob.id}
+                          className={`glass-card p-5 space-y-3 transition-colors border ${
+                            editingProblemId === prob.id ? 'border-cyan-400 bg-cyan-500/10' : 'hover:border-primary/40'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <h4 className="font-bold text-white text-base leading-snug">{prob.title}</h4>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              prob.released ? 'bg-green-500/20 text-green-300' : 'bg-amber-500/20 text-amber-300'
+                            }`}>
+                              {prob.released ? 'LIVE' : 'DRAFT'}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-foreground/70 line-clamp-2">{prob.description}</p>
+
+                          <div className="flex items-center gap-2 pt-2 border-t border-white/10">
+                            <button
+                              onClick={() => {
+                                setEditingProblemId(prob.id);
+                                setProbTitle(prob.title);
+                                setProbDesc(prob.description);
+                                setProbObjectives(Array.isArray(prob.objectives) ? prob.objectives.join('\n') : '');
+                                setProbConstraints(Array.isArray(prob.constraints) ? prob.constraints.join('\n') : '');
+                                setProbDeliverables(Array.isArray(prob.deliverables) ? prob.deliverables.join('\n') : '');
+                              }}
+                              className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-xs font-medium text-cyan-300 inline-flex items-center gap-1"
+                            >
+                              <Edit className="w-3 h-3" /> Edit
+                            </button>
+
+                            <button
+                              onClick={() => setPreviewProblem(prob)}
+                              className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-xs font-medium text-purple-300 inline-flex items-center gap-1"
+                            >
+                              <Eye className="w-3 h-3" /> Preview
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteProblem(prob.id)}
+                              className="px-2 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-xs font-medium text-red-400 ml-auto"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Right: Problem Draft Form Editor */}
+                <div className="lg:col-span-2">
+                  <div className="glass-card p-6 md:p-8 space-y-6 glow-border">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                      <h3 className="text-xl font-bold flex items-center gap-2">
+                        <Edit className="w-5 h-5 text-primary" />
+                        {editingProblemId ? 'Edit Problem Statement' : 'Create New Problem Statement'}
+                      </h3>
+                      {editingProblemId && (
+                        <span className="text-xs font-mono text-cyan-400">ID: {editingProblemId}</span>
+                      )}
+                    </div>
+
+                    <form onSubmit={handleSaveProblem} className="space-y-5">
+                      <div>
+                        <label className="block text-sm font-semibold mb-1">Challenge Title *</label>
+                        <input
+                          type="text"
+                          value={probTitle}
+                          onChange={(e) => setProbTitle(e.target.value)}
+                          placeholder="e.g. Build an AI-Powered Smart Campus Assistant"
+                          className="w-full px-4 py-3 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-sm focus:outline-none"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold mb-1">Detailed Description *</label>
+                        <textarea
+                          rows={4}
+                          value={probDesc}
+                          onChange={(e) => setProbDesc(e.target.value)}
+                          placeholder="Describe the challenge statement, problem scope, background, and expected user experience..."
+                          className="w-full px-4 py-3 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-sm focus:outline-none"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold mb-1">Objectives (1 per line)</label>
+                          <textarea
+                            rows={5}
+                            value={probObjectives}
+                            onChange={(e) => setProbObjectives(e.target.value)}
+                            placeholder="Understand user queries using AI&#10;Provide accurate responses&#10;Maintain clean UI"
+                            className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-xs focus:outline-none font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold mb-1">Constraints (1 per line)</label>
+                          <textarea
+                            rows={5}
+                            value={probConstraints}
+                            onChange={(e) => setProbConstraints(e.target.value)}
+                            placeholder="Development during event window&#10;Permissible AI models only&#10;Original solution code"
+                            className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-xs focus:outline-none font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold mb-1">Deliverables (1 per line)</label>
+                          <textarea
+                            rows={5}
+                            value={probDeliverables}
+                            onChange={(e) => setProbDeliverables(e.target.value)}
+                            placeholder="Functional Application&#10;Source Code Repository&#10;Live Judge Demonstration"
+                            className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-xs focus:outline-none font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-3 pt-2">
+                        <button
+                          type="submit"
+                          disabled={savingProblem}
+                          className="btn-primary py-3 px-6 text-sm font-bold inline-flex items-center gap-2"
+                        >
+                          {savingProblem ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin" /> Saving...
+                            </>
+                          ) : (
+                            'Save Problem Statement Draft'
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB 4: EVENT CONTROLS */}
           {activeTab === 'controls' && analytics && (
             <motion.div variants={itemVariants} className="space-y-6 max-w-3xl">
               <div className="glass-card p-8 space-y-6 glow-border">
@@ -616,7 +1012,7 @@ export default function ControlCenter() {
             </motion.div>
           )}
 
-          {/* TAB 4: ACTIVITY LOGS */}
+          {/* TAB 5: ACTIVITY LOGS */}
           {activeTab === 'logs' && (
             <motion.div variants={itemVariants} className="glass-card overflow-hidden">
               <div className="p-6 border-b border-primary/10 flex items-center justify-between">
@@ -652,6 +1048,69 @@ export default function ControlCenter() {
           )}
         </motion.div>
       </section>
+
+      {/* Admin Preview Modal */}
+      {previewProblem && (
+        <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glass-card p-6 md:p-8 max-w-3xl w-full space-y-6 glow-border border-2 border-cyan-400 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div>
+                <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">Admin Preview Mode</span>
+                <h3 className="text-2xl font-bold text-white">{previewProblem.title}</h3>
+              </div>
+              <button
+                onClick={() => setPreviewProblem(null)}
+                className="btn-primary text-xs py-1.5 px-3"
+              >
+                Close Preview
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm leading-relaxed">
+              <p className="text-foreground/90">{previewProblem.description}</p>
+
+              {previewProblem.objectives && previewProblem.objectives.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <h4 className="font-bold text-cyan-300 flex items-center gap-2">
+                    <Target className="w-4 h-4" /> Objectives:
+                  </h4>
+                  <ul className="space-y-1 pl-4">
+                    {previewProblem.objectives.map((o, i) => (
+                      <li key={i} className="text-foreground/80 list-disc">{o}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {previewProblem.constraints && previewProblem.constraints.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <h4 className="font-bold text-amber-300 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" /> Constraints:
+                  </h4>
+                  <ul className="space-y-1 pl-4">
+                    {previewProblem.constraints.map((c, i) => (
+                      <li key={i} className="text-foreground/80 list-disc">{c}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {previewProblem.deliverables && previewProblem.deliverables.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <h4 className="font-bold text-purple-300 flex items-center gap-2">
+                    <PackageCheck className="w-4 h-4" /> Deliverables:
+                  </h4>
+                  <ul className="space-y-1 pl-4">
+                    {previewProblem.deliverables.map((d, i) => (
+                      <li key={i} className="text-foreground/80 list-disc">{d}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* View Team Modal */}
       {selectedTeam && (

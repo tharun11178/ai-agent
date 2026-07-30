@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { initDatabase } from './db/database';
 import { setupSecurityMiddleware } from './middleware/security';
 import authRoutes from './routes/auth';
+import problemRoutes from './routes/problem';
 import adminRoutes from './routes/admin';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -21,6 +22,7 @@ export async function createExpressApp(): Promise<Express> {
 
   // Mount API Routers
   app.use('/api/auth', authRoutes);
+  app.use('/api/problem-statement', problemRoutes);
   app.use('/api/admin', adminRoutes);
 
   // Backward compatibility alias for /api/admin/login
