@@ -17,6 +17,7 @@ import ProblemStatementPage from "./pages/ProblemStatementPage";
 import { Navigation } from "./components/Navigation";
 import { Footer } from "./components/Footer";
 import { AnimatedBackground } from "./components/AnimatedBackground";
+import { CursorGlow } from "./components/CursorGlow";
 
 function Router() {
   return (
@@ -46,6 +47,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <AnimatedBackground />
+          <CursorGlow />
           <Navigation />
           <main className="relative z-10">
             <Router />
