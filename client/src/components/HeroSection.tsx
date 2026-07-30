@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { FuturisticRobotVisual } from './FuturisticRobotVisual';
-import { Rocket, ExternalLink, ChevronDown, Sparkles, Trophy, Calendar, Users, Award, ShieldCheck } from 'lucide-react';
+import { Rocket, ExternalLink, ChevronDown, Sparkles, Trophy, Calendar, Users, Award, ShieldCheck, FileText } from 'lucide-react';
 
 export function HeroSection() {
   const [, navigate] = useLocation();
@@ -98,17 +98,28 @@ export function HeroSection() {
                 </p>
               </motion.div>
 
-              {/* Call to Action Button */}
+              {/* Call to Action Buttons */}
               <motion.div
                 variants={itemVariants}
                 className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2"
               >
+                {/* 📋 View Problem Statement Button */}
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => navigate('/problem-statement')}
+                  className="btn-primary text-sm sm:text-base font-bold shadow-[0_0_30px_rgba(6,182,212,0.6)] border-cyan-400/60 inline-flex items-center justify-center gap-2"
+                >
+                  <FileText className="w-4 h-4 text-cyan-300" />
+                  <span>📋 View Problem Statement</span>
+                </motion.button>
+
                 {/* 🏫 Visit College Website Button */}
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={handleVisitCollege}
-                  className="btn-primary text-sm sm:text-base font-bold shadow-[0_0_30px_rgba(59,130,246,0.6)] border-blue-400/60 inline-flex items-center justify-center gap-2"
+                  className="btn-secondary text-sm sm:text-base font-bold inline-flex items-center justify-center gap-2"
                 >
                   <span>🏫 Visit College Website</span>
                   <ExternalLink className="w-4 h-4 text-cyan-300 ml-1" />
