@@ -27,6 +27,8 @@ import {
   AlertTriangle,
   PackageCheck,
   CheckCircle2,
+  Copy,
+  Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
@@ -54,6 +56,9 @@ interface Analytics {
   collegesRepresented: number;
   problemsReleased: boolean;
   totalProblems: number;
+  releasedCount: number;
+  draftCount: number;
+  hiddenCount: number;
   lastRegistration: string | null;
 }
 
@@ -62,10 +67,14 @@ interface ProblemStatement {
   title: string;
   description: string;
   objectives: string[];
+  requirements: string[];
   constraints: string[];
   deliverables: string[];
-  released: boolean;
-  releasedAt?: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard' | string;
+  category: string;
+  attachments?: string[];
+  status: 'Draft' | 'Released' | 'Hidden' | string;
+  assignedTeamIds?: string[];
   updatedAt: string;
   createdAt: string;
 }
@@ -103,8 +112,12 @@ export default function ControlCenter() {
   // Problem Form State
   const [editingProblemId, setEditingProblemId] = useState<string | null>(null);
   const [probTitle, setProbTitle] = useState('');
+  const [probCategory, setProbCategory] = useState('AI Agents');
+  const [probDifficulty, setProbDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
+  const [probStatus, setProbStatus] = useState<'Draft' | 'Released' | 'Hidden'>('Draft');
   const [probDesc, setProbDesc] = useState('');
   const [probObjectives, setProbObjectives] = useState('');
+  const [probRequirements, setProbRequirements] = useState('');
   const [probConstraints, setProbConstraints] = useState('');
   const [probDeliverables, setProbDeliverables] = useState('');
   const [savingProblem, setSavingProblem] = useState(false);
@@ -160,16 +173,6 @@ export default function ControlCenter() {
       }
       if (probData.success) {
         setProblems(probData.problems);
-        // Pre-fill editor with first problem if available
-        if (probData.problems.length > 0 && !editingProblemId) {
-          const first = probData.problems[0];
-          setEditingProblemId(first.id);
-          setProbTitle(first.title);
-          setProbDesc(first.description);
-          setProbObjectives(Array.isArray(first.objectives) ? first.objectives.join('\n') : '');
-          setProbConstraints(Array.isArray(first.constraints) ? first.constraints.join('\n') : '');
-          setProbDeliverables(Array.isArray(first.deliverables) ? first.deliverables.join('\n') : '');
-        }
       }
       if (logData.success) setLogs(logData.logs);
     } catch {
@@ -217,32 +220,53 @@ export default function ControlCenter() {
     toast.info('Logged out from admin panel.');
   };
 
-  // 1-Click Toggle Release / Lock Problem Statement
-  const handleToggleRelease = async (released: boolean) => {
+  // Change Specific Problem Status (Draft / Released / Hidden)
+  const handleUpdateProblemStatus = async (id: string, newStatus: 'Draft' | 'Released' | 'Hidden') => {
     if (!token) return;
     try {
-      const response = await apiFetch('/api/admin/problems/release', {
+      const response = await apiFetch(`/api/admin/problems/${id}/status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ released }),
+        body: JSON.stringify({ status: newStatus }),
       });
 
       const data = await response.json();
       if (data.success) {
-        toast.success(released ? '🚀 Problem statement is now LIVE for all participants!' : '🔒 Problem statement is now locked.');
+        toast.success(`Problem status updated to ${newStatus}!`);
         fetchAdminData(token);
       } else {
-        toast.error(data.error || 'Failed to update release status.');
+        toast.error(data.error || 'Failed to update problem status.');
       }
     } catch {
       toast.error('Failed to communicate with server.');
     }
   };
 
-  // Save / Update Problem Statement Draft
+  // Duplicate Problem Statement
+  const handleDuplicateProblem = async (id: string) => {
+    if (!token) return;
+    try {
+      const response = await apiFetch(`/api/admin/problems/${id}/duplicate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message || 'Problem duplicated successfully!');
+        fetchAdminData(token);
+      } else {
+        toast.error(data.error || 'Failed to duplicate problem.');
+      }
+    } catch {
+      toast.error('Server error duplicating problem.');
+    }
+  };
+
+  // Save / Update Problem Statement Form
   const handleSaveProblem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
@@ -262,8 +286,12 @@ export default function ControlCenter() {
         body: JSON.stringify({
           id: editingProblemId,
           title: probTitle,
+          category: probCategory || 'AI Agents',
+          difficulty: probDifficulty,
+          status: probStatus,
           description: probDesc,
           objectives: probObjectives.split('\n').map((s) => s.trim()).filter(Boolean),
+          requirements: probRequirements.split('\n').map((s) => s.trim()).filter(Boolean),
           constraints: probConstraints.split('\n').map((s) => s.trim()).filter(Boolean),
           deliverables: probDeliverables.split('\n').map((s) => s.trim()).filter(Boolean),
         }),
@@ -271,7 +299,8 @@ export default function ControlCenter() {
 
       const data = await response.json();
       if (data.success) {
-        toast.success(editingProblemId ? 'Problem statement updated successfully!' : 'New problem draft created!');
+        toast.success(editingProblemId ? 'Problem statement updated!' : 'New problem draft created!');
+        handleClearProblemForm();
         fetchAdminData(token);
       } else {
         toast.error(data.error || 'Failed to save problem statement.');
@@ -281,6 +310,32 @@ export default function ControlCenter() {
     } finally {
       setSavingProblem(false);
     }
+  };
+
+  const handleClearProblemForm = () => {
+    setEditingProblemId(null);
+    setProbTitle('');
+    setProbCategory('AI Agents');
+    setProbDifficulty('Medium');
+    setProbStatus('Draft');
+    setProbDesc('');
+    setProbObjectives('');
+    setProbRequirements('');
+    setProbConstraints('');
+    setProbDeliverables('');
+  };
+
+  const handleLoadProblemToEdit = (prob: ProblemStatement) => {
+    setEditingProblemId(prob.id);
+    setProbTitle(prob.title);
+    setProbCategory(prob.category || 'AI Agents');
+    setProbDifficulty((prob.difficulty as any) || 'Medium');
+    setProbStatus((prob.status as any) || 'Draft');
+    setProbDesc(prob.description);
+    setProbObjectives(Array.isArray(prob.objectives) ? prob.objectives.join('\n') : '');
+    setProbRequirements(Array.isArray(prob.requirements) ? prob.requirements.join('\n') : '');
+    setProbConstraints(Array.isArray(prob.constraints) ? prob.constraints.join('\n') : '');
+    setProbDeliverables(Array.isArray(prob.deliverables) ? prob.deliverables.join('\n') : '');
   };
 
   // Delete Problem Statement
@@ -294,12 +349,7 @@ export default function ControlCenter() {
       const data = await res.json();
       if (data.success) {
         toast.success('Problem statement deleted.');
-        setEditingProblemId(null);
-        setProbTitle('');
-        setProbDesc('');
-        setProbObjectives('');
-        setProbConstraints('');
-        setProbDeliverables('');
+        if (editingProblemId === id) handleClearProblemForm();
         fetchAdminData(token);
       } else {
         toast.error(data.error || 'Delete failed.');
@@ -330,7 +380,7 @@ export default function ControlCenter() {
     }
   };
 
-  // Update Event Config (Open/Close Registration, Max Teams capacity)
+  // Update Event Config
   const handleUpdateConfig = async (key: string, value: any) => {
     if (!token) return;
     setUpdatingConfig(true);
@@ -388,7 +438,7 @@ export default function ControlCenter() {
     toast.success('CSV export generated successfully!');
   };
 
-  // Search & Pagination Logic
+  // Search & Pagination Logic for Registrations
   const filteredRegistrations = registrations.filter(
     (reg: Registration) =>
       reg.teamName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -470,7 +520,7 @@ export default function ControlCenter() {
     );
   }
 
-  const isReleased = analytics?.problemsReleased || false;
+  const releasedCount = analytics?.releasedCount || problems.filter((p) => p.status === 'Released').length;
 
   return (
     <div className="min-h-screen pt-20 pb-20">
@@ -517,7 +567,7 @@ export default function ControlCenter() {
             {[
               { id: 'analytics', label: 'Analytics & Overview', icon: BarChart3 },
               { id: 'registrations', label: `Registrations (${registrations.length})`, icon: Users },
-              { id: 'problems', label: 'Problem Statements', icon: FileText },
+              { id: 'problems', label: `Problem Statements (${problems.length})`, icon: FileText },
               { id: 'controls', label: 'Event Controls', icon: Sliders },
               { id: 'logs', label: 'Activity Logs', icon: Activity },
             ].map((tab) => {
@@ -563,13 +613,13 @@ export default function ControlCenter() {
                   <p className="text-xs text-foreground/50">{analytics.collegesRepresented} Colleges Represented</p>
                 </div>
 
-                <div className={`glass-card p-6 space-y-2 border-l-4 ${isReleased ? 'border-green-500' : 'border-red-500'}`}>
-                  <p className="text-sm font-medium text-foreground/60">Problem Status</p>
-                  <p className={`text-4xl font-bold ${isReleased ? 'text-green-400' : 'text-red-400'}`}>
-                    {isReleased ? 'RELEASED' : 'LOCKED'}
+                <div className={`glass-card p-6 space-y-2 border-l-4 ${releasedCount > 0 ? 'border-green-500' : 'border-red-500'}`}>
+                  <p className="text-sm font-medium text-foreground/60">Released Problems</p>
+                  <p className={`text-4xl font-bold ${releasedCount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {releasedCount} / {problems.length}
                   </p>
                   <p className="text-xs text-foreground/50">
-                    {isReleased ? '🟢 Accessible to participants' : '🔴 Hidden / Waiting Screen'}
+                    {releasedCount > 0 ? `🟢 ${releasedCount} Live Problem(s)` : '🔴 All Problems Locked'}
                   </p>
                 </div>
               </div>
@@ -581,15 +631,11 @@ export default function ControlCenter() {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => handleToggleRelease(!isReleased)}
-                    className={`p-4 rounded-xl font-semibold border flex items-center justify-between ${
-                      isReleased
-                        ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
-                        : 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20'
-                    }`}
+                    onClick={() => setActiveTab('problems')}
+                    className="p-4 rounded-xl font-semibold border border-cyan-400/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 flex items-center justify-between"
                   >
-                    <span>{isReleased ? 'Lock Problem Statement' : 'Release Problem Statement'}</span>
-                    {isReleased ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
+                    <span>Manage & Release Problems</span>
+                    <FileText className="w-5 h-5 text-cyan-400" />
                   </motion.button>
 
                   <motion.button
@@ -730,228 +776,320 @@ export default function ControlCenter() {
             </motion.div>
           )}
 
-          {/* TAB 3: PROBLEM STATEMENT RELEASE SYSTEM */}
+          {/* TAB 3: MULTI-PROBLEM STATEMENT MANAGEMENT SYSTEM */}
           {activeTab === 'problems' && (
             <motion.div variants={itemVariants} className="space-y-8">
-              {/* Release Status Banner & One-Click Switch */}
-              <div className={`glass-card p-6 md:p-8 space-y-6 glow-border border-l-8 ${isReleased ? 'border-green-500' : 'border-red-500'}`}>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest inline-flex items-center gap-1.5 ${
-                        isReleased ? 'bg-green-500/20 text-green-300 border border-green-500/40' : 'bg-red-500/20 text-red-300 border border-red-500/40'
-                      }`}>
-                        {isReleased ? '🟢 LIVE / ACCESSIBLE' : '🔴 LOCKED / WAITING SCREEN'}
-                      </span>
-                    </div>
+              {/* Header Stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="glass-card p-6 border-l-4 border-green-500 space-y-1">
+                  <span className="text-xs font-semibold text-foreground/60">Released Statements</span>
+                  <p className="text-3xl font-bold text-green-400">
+                    {problems.filter((p) => p.status === 'Released').length}
+                  </p>
+                  <span className="text-[11px] text-foreground/50">Live and visible to participants</span>
+                </div>
 
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-                      Problem Statement Release Status
-                    </h2>
+                <div className="glass-card p-6 border-l-4 border-amber-500 space-y-1">
+                  <span className="text-xs font-semibold text-foreground/60">Draft Statements</span>
+                  <p className="text-3xl font-bold text-amber-400">
+                    {problems.filter((p) => p.status === 'Draft').length}
+                  </p>
+                  <span className="text-[11px] text-foreground/50">Saved in editor, unreleased</span>
+                </div>
 
-                    <p className="text-sm text-foreground/70 max-w-2xl">
-                      {isReleased
-                        ? 'The problem statement is currently RELEASED. Anyone scanning the QR code or visiting /problem-statement can view the challenge specifications.'
-                        : 'The problem statement is currently LOCKED. Anyone scanning the QR code sees the waiting screen ("Problem Statement Not Released Yet").'}
-                    </p>
-                  </div>
-
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleToggleRelease(!isReleased)}
-                    className={`py-4 px-6 rounded-2xl font-extrabold text-sm border shadow-lg inline-flex items-center justify-center gap-3 shrink-0 ${
-                      isReleased
-                        ? 'bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30 shadow-red-500/20'
-                        : 'bg-green-500/20 border-green-500/50 text-green-300 hover:bg-green-500/30 shadow-green-500/20'
-                    }`}
-                  >
-                    {isReleased ? (
-                      <>
-                        <Lock className="w-5 h-5" /> 🔒 Lock & Hide Problem Statement
-                      </>
-                    ) : (
-                      <>
-                        <Unlock className="w-5 h-5 text-green-400" /> 🚀 Release Problem Statement Now
-                      </>
-                    )}
-                  </motion.button>
+                <div className="glass-card p-6 border-l-4 border-red-500 space-y-1">
+                  <span className="text-xs font-semibold text-foreground/60">Hidden Statements</span>
+                  <p className="text-3xl font-bold text-red-400">
+                    {problems.filter((p) => p.status === 'Hidden').length}
+                  </p>
+                  <span className="text-[11px] text-foreground/50">Archived or hidden from public</span>
                 </div>
               </div>
 
-              {/* Editor & Preview Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left: Problem Statements List */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+              {/* Table of All Problem Statements */}
+              <div className="glass-card overflow-hidden">
+                <div className="p-6 border-b border-primary/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
                     <h3 className="text-xl font-bold flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-cyan-400" /> Problem Drafts
+                      <FileText className="w-5 h-5 text-cyan-400" /> All Problem Statements ({problems.length})
                     </h3>
-                    <button
-                      onClick={() => {
-                        setEditingProblemId(null);
-                        setProbTitle('');
-                        setProbDesc('');
-                        setProbObjectives('');
-                        setProbConstraints('');
-                        setProbDeliverables('');
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-bold hover:bg-cyan-500/20 inline-flex items-center gap-1.5"
-                    >
-                      <PlusCircle className="w-3.5 h-3.5" /> New Draft
-                    </button>
+                    <p className="text-xs text-foreground/60">
+                      Manage, preview, release, or duplicate problem statements.
+                    </p>
                   </div>
 
-                  <div className="space-y-3">
-                    {problems.length === 0 ? (
-                      <div className="glass-card p-6 text-center text-foreground/50 text-sm">
-                        No problem statement drafts found. Create one below.
-                      </div>
-                    ) : (
-                      problems.map((prob) => (
-                        <div
-                          key={prob.id}
-                          className={`glass-card p-5 space-y-3 transition-colors border ${
-                            editingProblemId === prob.id ? 'border-cyan-400 bg-cyan-500/10' : 'hover:border-primary/40'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <h4 className="font-bold text-white text-base leading-snug">{prob.title}</h4>
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                              prob.released ? 'bg-green-500/20 text-green-300' : 'bg-amber-500/20 text-amber-300'
-                            }`}>
-                              {prob.released ? 'LIVE' : 'DRAFT'}
-                            </span>
-                          </div>
-
-                          <p className="text-xs text-foreground/70 line-clamp-2">{prob.description}</p>
-
-                          <div className="flex items-center gap-2 pt-2 border-t border-white/10">
-                            <button
-                              onClick={() => {
-                                setEditingProblemId(prob.id);
-                                setProbTitle(prob.title);
-                                setProbDesc(prob.description);
-                                setProbObjectives(Array.isArray(prob.objectives) ? prob.objectives.join('\n') : '');
-                                setProbConstraints(Array.isArray(prob.constraints) ? prob.constraints.join('\n') : '');
-                                setProbDeliverables(Array.isArray(prob.deliverables) ? prob.deliverables.join('\n') : '');
-                              }}
-                              className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-xs font-medium text-cyan-300 inline-flex items-center gap-1"
-                            >
-                              <Edit className="w-3 h-3" /> Edit
-                            </button>
-
-                            <button
-                              onClick={() => setPreviewProblem(prob)}
-                              className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-xs font-medium text-purple-300 inline-flex items-center gap-1"
-                            >
-                              <Eye className="w-3 h-3" /> Preview
-                            </button>
-
-                            <button
-                              onClick={() => handleDeleteProblem(prob.id)}
-                              className="px-2 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-xs font-medium text-red-400 ml-auto"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  <button
+                    onClick={handleClearProblemForm}
+                    className="btn-primary py-2 px-4 text-xs font-bold inline-flex items-center gap-2 w-fit"
+                  >
+                    <PlusCircle className="w-4 h-4" /> Add New Problem
+                  </button>
                 </div>
 
-                {/* Right: Problem Draft Form Editor */}
-                <div className="lg:col-span-2">
-                  <div className="glass-card p-6 md:p-8 space-y-6 glow-border">
-                    <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                      <h3 className="text-xl font-bold flex items-center gap-2">
-                        <Edit className="w-5 h-5 text-primary" />
-                        {editingProblemId ? 'Edit Problem Statement' : 'Create New Problem Statement'}
-                      </h3>
-                      {editingProblemId && (
-                        <span className="text-xs font-mono text-cyan-400">ID: {editingProblemId}</span>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-white/5 border-b border-primary/10 text-foreground/70 uppercase text-xs">
+                      <tr>
+                        <th className="py-3.5 px-4 font-semibold">ID</th>
+                        <th className="py-3.5 px-4 font-semibold">Title</th>
+                        <th className="py-3.5 px-4 font-semibold">Category</th>
+                        <th className="py-3.5 px-4 font-semibold">Difficulty</th>
+                        <th className="py-3.5 px-4 font-semibold">Status</th>
+                        <th className="py-3.5 px-4 font-semibold">Updated</th>
+                        <th className="py-3.5 px-4 text-right font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-primary/10">
+                      {problems.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-8 text-center text-foreground/50">
+                            No problem statements created yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        problems.map((prob) => (
+                          <tr key={prob.id} className="hover:bg-white/5 transition-colors">
+                            <td className="py-3.5 px-4 font-mono text-xs text-cyan-400">{prob.id}</td>
+                            <td className="py-3.5 px-4 font-bold text-white max-w-xs truncate">{prob.title}</td>
+                            <td className="py-3.5 px-4">
+                              <span className="px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 text-[11px] font-semibold">
+                                {prob.category}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                prob.difficulty === 'Easy' ? 'bg-emerald-500/20 text-emerald-300' :
+                                prob.difficulty === 'Hard' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'
+                              }`}>
+                                {prob.difficulty}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold uppercase inline-flex items-center gap-1 ${
+                                prob.status === 'Released' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                                prob.status === 'Hidden' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                                'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              }`}>
+                                {prob.status === 'Released' ? '🟢 Released' : prob.status === 'Hidden' ? '🔴 Hidden' : '🟡 Draft'}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-xs font-mono text-foreground/60">
+                              {new Date(prob.updatedAt).toLocaleDateString()}
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {prob.status === 'Released' ? (
+                                  <button
+                                    onClick={() => handleUpdateProblemStatus(prob.id, 'Hidden')}
+                                    className="px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold"
+                                    title="Hide Problem"
+                                  >
+                                    Hide
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleUpdateProblemStatus(prob.id, 'Released')}
+                                    className="px-2 py-1 rounded bg-green-500/10 hover:bg-green-500/20 text-green-300 text-xs font-semibold"
+                                    title="Release Problem"
+                                  >
+                                    Release
+                                  </button>
+                                )}
+
+                                <button
+                                  onClick={() => setPreviewProblem(prob)}
+                                  className="p-1.5 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-300"
+                                  title="Preview"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+
+                                <button
+                                  onClick={() => handleLoadProblemToEdit(prob)}
+                                  className="p-1.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300"
+                                  title="Edit"
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                </button>
+
+                                <button
+                                  onClick={() => handleDuplicateProblem(prob.id)}
+                                  className="p-1.5 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-300"
+                                  title="Duplicate"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+
+                                <button
+                                  onClick={() => handleDeleteProblem(prob.id)}
+                                  className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
                       )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Form Editor */}
+              <div className="glass-card p-6 md:p-8 space-y-6 glow-border">
+                <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <Edit className="w-5 h-5 text-primary" />
+                    {editingProblemId ? `Edit Problem Statement (${editingProblemId})` : 'Create New Problem Statement'}
+                  </h3>
+                  {editingProblemId && (
+                    <button
+                      onClick={handleClearProblemForm}
+                      className="text-xs font-semibold text-foreground/60 hover:text-white"
+                    >
+                      Clear & Create New
+                    </button>
+                  )}
+                </div>
+
+                <form onSubmit={handleSaveProblem} className="space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold mb-1">Problem Title *</label>
+                      <input
+                        type="text"
+                        value={probTitle}
+                        onChange={(e) => setProbTitle(e.target.value)}
+                        placeholder="e.g. Build an AI-Powered Smart Campus Assistant"
+                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-sm focus:outline-none"
+                        required
+                      />
                     </div>
 
-                    <form onSubmit={handleSaveProblem} className="space-y-5">
-                      <div>
-                        <label className="block text-sm font-semibold mb-1">Challenge Title *</label>
-                        <input
-                          type="text"
-                          value={probTitle}
-                          onChange={(e) => setProbTitle(e.target.value)}
-                          placeholder="e.g. Build an AI-Powered Smart Campus Assistant"
-                          className="w-full px-4 py-3 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-sm focus:outline-none"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold mb-1">Detailed Description *</label>
-                        <textarea
-                          rows={4}
-                          value={probDesc}
-                          onChange={(e) => setProbDesc(e.target.value)}
-                          placeholder="Describe the challenge statement, problem scope, background, and expected user experience..."
-                          className="w-full px-4 py-3 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-sm focus:outline-none"
-                          required
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold mb-1">Objectives (1 per line)</label>
-                          <textarea
-                            rows={5}
-                            value={probObjectives}
-                            onChange={(e) => setProbObjectives(e.target.value)}
-                            placeholder="Understand user queries using AI&#10;Provide accurate responses&#10;Maintain clean UI"
-                            className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-xs focus:outline-none font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold mb-1">Constraints (1 per line)</label>
-                          <textarea
-                            rows={5}
-                            value={probConstraints}
-                            onChange={(e) => setProbConstraints(e.target.value)}
-                            placeholder="Development during event window&#10;Permissible AI models only&#10;Original solution code"
-                            className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-xs focus:outline-none font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold mb-1">Deliverables (1 per line)</label>
-                          <textarea
-                            rows={5}
-                            value={probDeliverables}
-                            onChange={(e) => setProbDeliverables(e.target.value)}
-                            placeholder="Functional Application&#10;Source Code Repository&#10;Live Judge Demonstration"
-                            className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-xs focus:outline-none font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-3 pt-2">
-                        <button
-                          type="submit"
-                          disabled={savingProblem}
-                          className="btn-primary py-3 px-6 text-sm font-bold inline-flex items-center gap-2"
-                        >
-                          {savingProblem ? (
-                            <>
-                              <RefreshCw className="w-4 h-4 animate-spin" /> Saving...
-                            </>
-                          ) : (
-                            'Save Problem Statement Draft'
-                          )}
-                        </button>
-                      </div>
-                    </form>
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Category</label>
+                      <input
+                        type="text"
+                        value={probCategory}
+                        onChange={(e) => setProbCategory(e.target.value)}
+                        placeholder="e.g. AI Agents & Automation"
+                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-sm focus:outline-none"
+                      />
+                    </div>
                   </div>
-                </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Difficulty Level</label>
+                      <select
+                        value={probDifficulty}
+                        onChange={(e) => setProbDifficulty(e.target.value as any)}
+                        className="w-full px-4 py-3 rounded-xl bg-[#0F172A] border border-primary/20 focus:border-primary/50 text-sm focus:outline-none"
+                      >
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Initial Status</label>
+                      <select
+                        value={probStatus}
+                        onChange={(e) => setProbStatus(e.target.value as any)}
+                        className="w-full px-4 py-3 rounded-xl bg-[#0F172A] border border-primary/20 focus:border-primary/50 text-sm focus:outline-none"
+                      >
+                        <option value="Draft">Draft (Saved, not released)</option>
+                        <option value="Released">Released (Live to participants)</option>
+                        <option value="Hidden">Hidden (Archived)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Detailed Description *</label>
+                    <textarea
+                      rows={4}
+                      value={probDesc}
+                      onChange={(e) => setProbDesc(e.target.value)}
+                      placeholder="Describe the challenge statement, problem scope, background, and expected user experience..."
+                      className="w-full px-4 py-3 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-sm focus:outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Key Objectives (1 per line)</label>
+                      <textarea
+                        rows={4}
+                        value={probObjectives}
+                        onChange={(e) => setProbObjectives(e.target.value)}
+                        placeholder="Understand user queries using AI&#10;Provide accurate responses&#10;Maintain clean UI"
+                        className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-xs focus:outline-none font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Requirements (1 per line)</label>
+                      <textarea
+                        rows={4}
+                        value={probRequirements}
+                        onChange={(e) => setProbRequirements(e.target.value)}
+                        placeholder="User-friendly UI/UX interface&#10;Fast response times under 2s&#10;Support for campus knowledge"
+                        className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-xs focus:outline-none font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Constraints (1 per line)</label>
+                      <textarea
+                        rows={4}
+                        value={probConstraints}
+                        onChange={(e) => setProbConstraints(e.target.value)}
+                        placeholder="Development during event window&#10;Permissible AI models only&#10;Original solution code"
+                        className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-xs focus:outline-none font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Deliverables (1 per line)</label>
+                      <textarea
+                        rows={4}
+                        value={probDeliverables}
+                        onChange={(e) => setProbDeliverables(e.target.value)}
+                        placeholder="Functional Application&#10;Source Code Repository&#10;Live Judge Demonstration"
+                        className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-xs focus:outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleClearProblemForm}
+                      className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-foreground/70"
+                    >
+                      Clear / Reset
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={savingProblem}
+                      className="btn-primary py-3 px-6 text-sm font-bold inline-flex items-center gap-2"
+                    >
+                      {savingProblem ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" /> Saving...
+                        </>
+                      ) : (
+                        'Save Problem Statement'
+                      )}
+                    </button>
+                  </div>
+                </form>
               </div>
             </motion.div>
           )}
@@ -1067,16 +1205,38 @@ export default function ControlCenter() {
             </div>
 
             <div className="space-y-4 text-sm leading-relaxed">
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 text-xs font-bold">
+                  Category: {previewProblem.category}
+                </span>
+                <span className="px-2.5 py-0.5 rounded bg-purple-500/10 text-purple-300 text-xs font-bold">
+                  Difficulty: {previewProblem.difficulty}
+                </span>
+              </div>
+
               <p className="text-foreground/90">{previewProblem.description}</p>
 
               {previewProblem.objectives && previewProblem.objectives.length > 0 && (
                 <div className="space-y-2 pt-2">
                   <h4 className="font-bold text-cyan-300 flex items-center gap-2">
-                    <Target className="w-4 h-4" /> Objectives:
+                    <Target className="w-4 h-4" /> Key Objectives:
                   </h4>
                   <ul className="space-y-1 pl-4">
                     {previewProblem.objectives.map((o, i) => (
                       <li key={i} className="text-foreground/80 list-disc">{o}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {previewProblem.requirements && previewProblem.requirements.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <h4 className="font-bold text-secondary flex items-center gap-2">
+                    <Layers className="w-4 h-4" /> Requirements:
+                  </h4>
+                  <ul className="space-y-1 pl-4">
+                    {previewProblem.requirements.map((r, i) => (
+                      <li key={i} className="text-foreground/80 list-disc">{r}</li>
                     ))}
                   </ul>
                 </div>

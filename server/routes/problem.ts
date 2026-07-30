@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { dbGet } from '../db/database';
+import { dbAll } from '../db/database';
 
 const router = Router();
 
@@ -7,31 +7,34 @@ const router = Router();
 // Public endpoint for participants scanning the QR code or visiting /problem-statement
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    const problem = await dbGet<{
+    const releasedProblems = await dbAll<{
       id: string;
       title: string;
       description: string;
       objectives: string;
+      requirements: string;
       constraints: string;
       deliverables: string;
-      released: number;
-      releasedAt: string | null;
+      difficulty: string;
+      category: string;
+      attachments: string | null;
+      status: string;
+      createdAt: string;
       updatedAt: string;
-    }>(`SELECT * FROM problems ORDER BY createdAt DESC LIMIT 1`);
+    }>(`SELECT * FROM problems WHERE status = 'Released' ORDER BY createdAt DESC`);
 
-    if (!problem || Boolean(problem.released) === false) {
+    if (!releasedProblems || releasedProblems.length === 0) {
       res.json({
         success: true,
         released: false,
-        releasedAt: null,
-        problem: null,
-        message: 'The problem statement has not been released by the event organizers. Please wait until the official announcement.',
+        count: 0,
+        problems: [],
+        message: 'No problem statements have been released by the event organizers yet. Please wait until the official announcement.',
       });
       return;
     }
 
-    // Safely parse JSON arrays for objectives, constraints, and deliverables
-    const parseJsonArray = (str: string, fallback: string[]) => {
+    const parseJsonArray = (str: string, fallback: string[] = []) => {
       try {
         const parsed = JSON.parse(str);
         return Array.isArray(parsed) ? parsed : fallback;
@@ -40,26 +43,33 @@ router.get('/', async (_req: Request, res: Response) => {
       }
     };
 
+    const formattedProblems = releasedProblems.map((p) => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      objectives: parseJsonArray(p.objectives),
+      requirements: parseJsonArray(p.requirements),
+      constraints: parseJsonArray(p.constraints),
+      deliverables: parseJsonArray(p.deliverables),
+      difficulty: p.difficulty || 'Medium',
+      category: p.category || 'AI Agents',
+      attachments: parseJsonArray(p.attachments || '[]'),
+      updatedAt: p.updatedAt,
+    }));
+
     res.json({
       success: true,
       released: true,
-      releasedAt: problem.releasedAt,
-      problem: {
-        id: problem.id,
-        title: problem.title,
-        description: problem.description,
-        objectives: parseJsonArray(problem.objectives, []),
-        constraints: parseJsonArray(problem.constraints, []),
-        deliverables: parseJsonArray(problem.deliverables, []),
-        updatedAt: problem.updatedAt,
-      },
+      count: formattedProblems.length,
+      problems: formattedProblems,
     });
   } catch (err: any) {
     res.status(500).json({
       success: false,
       released: false,
-      problem: null,
-      error: 'Failed to fetch problem statement release status.',
+      count: 0,
+      problems: [],
+      error: 'Failed to fetch released problem statements.',
     });
   }
 });

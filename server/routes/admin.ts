@@ -39,7 +39,7 @@ router.delete('/registrations/:id', async (req: Request, res: Response) => {
   }
 });
 
-// GET Problems (All draft & live problems for Admin Panel)
+// GET Problems (All Draft, Released, and Hidden problems for Admin Management)
 router.get('/problems', async (_req: Request, res: Response) => {
   try {
     const problems = await dbAll(`SELECT * FROM problems ORDER BY createdAt DESC`);
@@ -55,10 +55,12 @@ router.get('/problems', async (_req: Request, res: Response) => {
 
     const formatted = problems.map((p) => ({
       ...p,
-      released: Boolean(p.released),
       objectives: parseJsonArray(p.objectives),
+      requirements: parseJsonArray(p.requirements || '[]'),
       constraints: parseJsonArray(p.constraints),
       deliverables: parseJsonArray(p.deliverables),
+      attachments: parseJsonArray(p.attachments || '[]'),
+      assignedTeamIds: parseJsonArray(p.assignedTeamIds || '[]'),
     }));
 
     res.json({ success: true, problems: formatted });
@@ -70,7 +72,19 @@ router.get('/problems', async (_req: Request, res: Response) => {
 // POST Create or Update Problem Statement
 router.post('/problems', async (req: Request, res: Response) => {
   const adminUser = (req as any).adminUser?.username || 'admin';
-  const { id, title, description, objectives, constraints, deliverables } = req.body || {};
+  const {
+    id,
+    title,
+    description,
+    objectives,
+    requirements,
+    constraints,
+    deliverables,
+    difficulty,
+    category,
+    attachments,
+    status,
+  } = req.body || {};
 
   if (!title || !description) {
     res.status(400).json({ success: false, error: 'Title and description are required.' });
@@ -85,61 +99,119 @@ router.post('/problems', async (req: Request, res: Response) => {
 
   const now = new Date().toISOString();
   const objStr = formatList(objectives);
+  const reqStr = formatList(requirements);
   const conStr = formatList(constraints);
   const delStr = formatList(deliverables);
+  const attStr = formatList(attachments);
+  const validDifficulty = ['Easy', 'Medium', 'Hard'].includes(difficulty) ? difficulty : 'Medium';
+  const validCategory = category?.trim() || 'AI Agents';
+  const validStatus = ['Draft', 'Released', 'Hidden'].includes(status) ? status : 'Draft';
 
   try {
     if (id) {
       // Update existing problem statement
       await dbRun(
         `UPDATE problems
-         SET title = ?, description = ?, objectives = ?, constraints = ?, deliverables = ?, updatedAt = ?
+         SET title = ?, description = ?, objectives = ?, requirements = ?, constraints = ?, deliverables = ?,
+             difficulty = ?, category = ?, attachments = ?, status = ?, updatedAt = ?
          WHERE id = ?`,
-        [title.trim(), description.trim(), objStr, conStr, delStr, now, id]
+        [title.trim(), description.trim(), objStr, reqStr, conStr, delStr, validDifficulty, validCategory, attStr, validStatus, now, id]
       );
-      await logAdminActivity(adminUser, 'PROBLEM_UPDATED', `Updated problem statement '${title.trim()}' (ID: ${id})`);
+      await logAdminActivity(adminUser, 'PROBLEM_UPDATED', `Updated problem statement '${title.trim()}' (${validStatus})`);
       res.json({ success: true, message: 'Problem statement updated successfully.' });
     } else {
       // Create new problem statement draft
       const newId = `prob-${nanoid(8)}`;
       await dbRun(
-        `INSERT INTO problems (id, title, description, objectives, constraints, deliverables, released, releasedAt, updatedAt, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
-        [newId, title.trim(), description.trim(), objStr, conStr, delStr, now, now]
+        `INSERT INTO problems (id, title, description, objectives, requirements, constraints, deliverables, difficulty, category, attachments, status, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newId, title.trim(), description.trim(), objStr, reqStr, conStr, delStr, validDifficulty, validCategory, attStr, validStatus, now, now]
       );
-      await logAdminActivity(adminUser, 'PROBLEM_CREATED', `Created problem statement draft '${title.trim()}' (ID: ${newId})`);
-      res.status(201).json({ success: true, id: newId, message: 'Problem statement draft created successfully.' });
+      await logAdminActivity(adminUser, 'PROBLEM_CREATED', `Created problem statement '${title.trim()}' (${validStatus})`);
+      res.status(201).json({ success: true, id: newId, message: 'Problem statement created successfully.' });
     }
   } catch (err: any) {
     res.status(500).json({ success: false, error: 'Failed to save problem statement.' });
   }
 });
 
-// POST Toggle Release / Lock Status for Problem Statements
-router.post('/problems/release', async (req: Request, res: Response) => {
+// POST Update Status for Specific Problem Statement (Draft / Released / Hidden)
+router.post('/problems/:id/status', async (req: Request, res: Response) => {
+  const { id } = req.params;
   const adminUser = (req as any).adminUser?.username || 'admin';
-  const { released } = req.body || {};
-  const isReleased = Boolean(released);
-  const releasedAt = isReleased ? new Date().toISOString() : null;
+  const { status } = req.body || {};
+
+  if (!['Draft', 'Released', 'Hidden'].includes(status)) {
+    res.status(400).json({ success: false, error: "Status must be 'Draft', 'Released', or 'Hidden'." });
+    return;
+  }
+
+  const now = new Date().toISOString();
 
   try {
-    await dbRun(`UPDATE problems SET released = ?, releasedAt = ?`, [isReleased ? 1 : 0, releasedAt]);
+    const prob = await dbGet<{ title: string }>(`SELECT title FROM problems WHERE id = ?`, [id]);
+    if (!prob) {
+      res.status(404).json({ success: false, error: 'Problem statement not found.' });
+      return;
+    }
 
-    const action = isReleased ? 'PROBLEMS_RELEASED' : 'PROBLEMS_LOCKED';
-    const detail = isReleased
-      ? 'Released official problem statement to all participants!'
-      : 'Locked problem statement (hidden from participants)';
-
-    await logAdminActivity(adminUser, action, detail);
+    await dbRun(`UPDATE problems SET status = ?, updatedAt = ? WHERE id = ?`, [status, now, id]);
+    await logAdminActivity(adminUser, 'PROBLEM_STATUS_CHANGED', `Changed status for '${prob.title}' to '${status}'`);
 
     res.json({
       success: true,
-      released: isReleased,
-      releasedAt,
-      message: isReleased ? '🚀 Problem statement is now LIVE and accessible to participants!' : '🔒 Problem statement is now hidden and locked.',
+      status,
+      message: `Problem statement status updated to ${status}.`,
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: 'Failed to update problem release status.' });
+    res.status(500).json({ success: false, error: 'Failed to update problem status.' });
+  }
+});
+
+// POST Duplicate Problem Statement
+router.post('/problems/:id/duplicate', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const adminUser = (req as any).adminUser?.username || 'admin';
+
+  try {
+    const original = await dbGet<any>(`SELECT * FROM problems WHERE id = ?`, [id]);
+    if (!original) {
+      res.status(404).json({ success: false, error: 'Problem statement not found.' });
+      return;
+    }
+
+    const newId = `prob-${nanoid(8)}`;
+    const now = new Date().toISOString();
+    const dupTitle = `${original.title} (Copy)`;
+
+    await dbRun(
+      `INSERT INTO problems (id, title, description, objectives, requirements, constraints, deliverables, difficulty, category, attachments, status, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', ?, ?)`,
+      [
+        newId,
+        dupTitle,
+        original.description,
+        original.objectives,
+        original.requirements,
+        original.constraints,
+        original.deliverables,
+        original.difficulty,
+        original.category,
+        original.attachments,
+        now,
+        now,
+      ]
+    );
+
+    await logAdminActivity(adminUser, 'PROBLEM_DUPLICATED', `Duplicated problem '${original.title}' as '${dupTitle}'`);
+
+    res.status(201).json({
+      success: true,
+      id: newId,
+      message: `Problem statement duplicated as '${dupTitle}'.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to duplicate problem statement.' });
   }
 });
 
@@ -170,7 +242,7 @@ router.get('/analytics', async (_req: Request, res: Response) => {
     const maxTeamsConfig = await dbGet<{ value: string }>(`SELECT value FROM event_config WHERE key = 'MAX_TEAMS'`);
     const regOpenConfig = await dbGet<{ value: string }>(`SELECT value FROM event_config WHERE key = 'registrationOpen'`);
     const teams = await dbAll(`SELECT college, member2, createdAt FROM teams`);
-    const problems = await dbAll(`SELECT released FROM problems`);
+    const problems = await dbAll(`SELECT status FROM problems`);
 
     const maxTeams = parseInt(maxTeamsConfig?.value || '100', 10);
     const registrationOpen = regOpenConfig?.value === 'true';
@@ -180,7 +252,9 @@ router.get('/analytics', async (_req: Request, res: Response) => {
     const collegesCount = new Set(teams.map((t) => t.college.trim().toLowerCase())).size;
     const totalParticipants = teams.reduce((acc, t) => acc + (t.member2 && t.member2.trim() ? 2 : 1), 0);
 
-    const problemsReleased = problems.some((p) => p.released === 1);
+    const releasedCount = problems.filter((p) => p.status === 'Released').length;
+    const draftCount = problems.filter((p) => p.status === 'Draft').length;
+    const hiddenCount = problems.filter((p) => p.status === 'Hidden').length;
 
     res.json({
       success: true,
@@ -192,8 +266,11 @@ router.get('/analytics', async (_req: Request, res: Response) => {
         registrationOpen,
         totalParticipants,
         collegesRepresented: collegesCount,
-        problemsReleased,
         totalProblems: problems.length,
+        releasedCount,
+        draftCount,
+        hiddenCount,
+        problemsReleased: releasedCount > 0,
         lastRegistration: teams.length > 0 ? teams[0].createdAt : null,
       },
     });
