@@ -51,19 +51,31 @@ export async function createExpressApp(): Promise<Express> {
   ];
 
   const staticPath = possibleStaticPaths.find(p => fs.existsSync(path.resolve(p, 'index.html'))) || possibleStaticPaths[0];
+  const indexHtmlPath = path.resolve(staticPath, 'index.html');
 
-  app.use(express.static(staticPath, { maxAge: '1d' }));
+  // Serve static files with optimized HTTP caching headers
+  app.use(
+    express.static(staticPath, {
+      maxAge: '1y',
+      immutable: true,
+      etag: true,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+        } else {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    })
+  );
 
   // Fallback to index.html for client-side Wouter routing
   app.get('*', (req, res, next) => {
     if (req.url.startsWith('/api')) {
       return next();
     }
-    for (const p of possibleStaticPaths) {
-      const candidate = path.resolve(p, 'index.html');
-      if (fs.existsSync(candidate)) {
-        return res.sendFile(candidate);
-      }
+    if (fs.existsSync(indexHtmlPath)) {
+      return res.sendFile(indexHtmlPath);
     }
     return res.status(404).send('404 Not Found');
   });

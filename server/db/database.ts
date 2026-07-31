@@ -152,10 +152,17 @@ export async function initDatabase(): Promise<void> {
     await dbRun(`INSERT INTO event_config (key, value) VALUES ('registrationOpen', 'true')`);
   }
 
-  const adminPass = process.env.ADMIN_PASSWORD || 'isagi1117';
-  const newHash = bcrypt.hashSync(adminPass, 10);
-  await dbRun(`INSERT OR REPLACE INTO event_config (key, value) VALUES ('adminPasswordHash', ?)`, [newHash]);
-  await dbRun(`INSERT OR REPLACE INTO event_config (key, value) VALUES ('adminUsername', 'admin')`);
+  const adminHashConfig = await dbGet(`SELECT value FROM event_config WHERE key = 'adminPasswordHash'`);
+  if (!adminHashConfig) {
+    const adminPass = process.env.ADMIN_PASSWORD || 'isagi1117';
+    const newHash = bcrypt.hashSync(adminPass, 10);
+    await dbRun(`INSERT INTO event_config (key, value) VALUES ('adminPasswordHash', ?)`, [newHash]);
+  }
+
+  const adminUserConfig = await dbGet(`SELECT value FROM event_config WHERE key = 'adminUsername'`);
+  if (!adminUserConfig) {
+    await dbRun(`INSERT INTO event_config (key, value) VALUES ('adminUsername', 'admin')`);
+  }
 
   // Seed sample Problem Statements if table is empty
   const problemCount = await dbGet<{ count: number }>(`SELECT COUNT(*) as count FROM problems`);

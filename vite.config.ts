@@ -236,15 +236,23 @@ export default defineConfig(({ command }) => {
     emptyOutDir: true,
     target: "esnext",
     cssCodeSplit: true,
+    sourcemap: false,
+    minify: "esbuild",
+    cssMinify: true,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks: {
           "vendor-react": ["react", "react-dom", "wouter"],
           "vendor-framer": ["framer-motion"],
           "vendor-icons": ["lucide-react"],
+          "vendor-utils": ["clsx", "tailwind-merge"],
         },
       },
     },
+  },
+  esbuild: {
+    drop: command === "build" ? ["console", "debugger"] : [],
   },
   server: {
     port: 3000,

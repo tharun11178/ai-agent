@@ -4,7 +4,7 @@
     "title": "Autonomous Logistics Routing Agent",
     "track": "AI Agents & Autonomous Systems",
     "description": "Design an intelligent agent that dynamically re-routes delivery fleets in real time during supply chain disruptions.",
-    "released": true,
+    "released": false,
     "createdAt": "2026-07-27T04:46:16.436Z"
   },
   {
@@ -12,7 +12,7 @@
     "title": "Real-Time Code Vulnerability Detection Agent",
     "track": "Cybersecurity & Code Analysis",
     "description": "Build an LLM-powered code review agent capable of catching zero-day vulnerabilities in pull requests before deployment.",
-    "released": true,
+    "released": false,
     "createdAt": "2026-07-27T04:46:16.436Z"
   },
   {
@@ -20,7 +20,7 @@
     "title": "health care",
     "track": "General AI",
     "description": "wertyui",
-    "released": true,
+    "released": false,
     "createdAt": "2026-07-27T04:53:10.507Z"
   }
 ]

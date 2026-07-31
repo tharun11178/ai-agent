@@ -5,7 +5,12 @@ import express, { Express } from 'express';
 
 export function setupSecurityMiddleware(app: Express): void {
   // Compression for fast HTTP response delivery (gzip/brotli)
-  app.use(compression());
+  app.use(
+    compression({
+      level: 6,
+      threshold: 1024,
+    })
+  );
 
   // Helmet HTTP security headers configuration
   app.use(
