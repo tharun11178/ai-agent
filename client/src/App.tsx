@@ -47,6 +47,7 @@ function Router() {
         <Route path={"/faq"} component={FAQ} />
         <Route path={"/dashboard"} component={Dashboard} />
         <Route path={"/schedule"} component={Schedule} />
+        <Route path={"/ps/:token"} component={ProblemStatementPage} />
         <Route path={"/problem-statement"} component={ProblemStatementPage} />
         <Route path={"/problem-statement/:id"} component={ProblemStatementPage} />
         <Route path={"/control-center"} component={ControlCenter} />

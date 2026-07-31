@@ -137,6 +137,9 @@ export async function initDatabase(): Promise<void> {
   if (!existingProbCols.includes('lastScannedAt')) {
     await dbRun(`ALTER TABLE problems ADD COLUMN lastScannedAt TEXT`);
   }
+  if (!existingProbCols.includes('accessToken')) {
+    await dbRun(`ALTER TABLE problems ADD COLUMN accessToken TEXT`);
+  }
 
   // Create Activity Logs Table
   await dbRun(`
@@ -488,13 +491,14 @@ export async function initDatabase(): Promise<void> {
     ];
 
     for (const p of sampleProblems) {
-      const qrUrl = `/problem-statement/${p.id}`;
-      const existing = await dbGet(`SELECT id FROM problems WHERE id = ?`, [p.id]);
+      const existing = await dbGet<any>(`SELECT id, accessToken FROM problems WHERE id = ?`, [p.id]);
+      const token = existing?.accessToken || nanoid(10);
+      const qrUrl = `/ps/${token}`;
 
       if (!existing) {
         await dbRun(
-          `INSERT INTO problems (id, title, description, objectives, requirements, constraints, deliverables, difficulty, category, qrCode, scanCount, status, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Draft', ?, ?)`,
+          `INSERT INTO problems (id, title, description, objectives, requirements, constraints, deliverables, difficulty, category, qrCode, scanCount, status, accessToken, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Draft', ?, ?, ?)`,
           [
             p.id,
             p.title,
@@ -506,14 +510,18 @@ export async function initDatabase(): Promise<void> {
             p.difficulty,
             p.category,
             qrUrl,
+            token,
             now,
             now,
           ]
         );
       } else {
         await dbRun(
-          `UPDATE problems SET qrCode = ? WHERE id = ? AND (qrCode IS NULL OR qrCode = '')`,
-          [qrUrl, p.id]
+          `UPDATE problems
+           SET accessToken = COALESCE(accessToken, ?),
+               qrCode = CASE WHEN qrCode IS NULL OR qrCode = '' OR qrCode LIKE '/problem-statement/%' THEN ? ELSE qrCode END
+           WHERE id = ?`,
+          [token, qrUrl, p.id]
         );
       }
     }

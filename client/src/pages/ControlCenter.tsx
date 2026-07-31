@@ -77,6 +77,7 @@ interface ProblemStatement {
   category: string;
   attachments?: string[];
   status: 'Draft' | 'Released' | 'Hidden' | string;
+  accessToken?: string;
   qrCode?: string;
   scanCount?: number;
   firstScannedAt?: string | null;
@@ -319,6 +320,32 @@ export default function ControlCenter() {
     };
 
     img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+  };
+
+  // Regenerate Secure Access Token for Problem Statement
+  const handleRegenerateToken = async (id: string) => {
+    if (!token) return;
+    try {
+      const response = await apiFetch(`/api/admin/problems/${id}/regenerate-token`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message || 'Token regenerated successfully!');
+        if (qrModalProblem && qrModalProblem.id === id) {
+          setQrModalProblem({
+            ...qrModalProblem,
+            qrCode: data.qrCode,
+          });
+        }
+        fetchAdminData(token);
+      } else {
+        toast.error(data.error || 'Failed to regenerate token.');
+      }
+    } catch {
+      toast.error('Server error regenerating token.');
+    }
   };
 
   // Duplicate Problem Statement
@@ -1102,8 +1129,8 @@ export default function ControlCenter() {
                                     id={`qr-svg-${prob.id}`}
                                     value={
                                       typeof window !== 'undefined'
-                                        ? `${window.location.origin}/problem-statement/${prob.id}`
-                                        : `/problem-statement/${prob.id}`
+                                        ? `${window.location.origin}/ps/${prob.accessToken || prob.id}`
+                                        : `/ps/${prob.accessToken || prob.id}`
                                     }
                                     size={40}
                                     bgColor="#FFFFFF"
@@ -1507,8 +1534,8 @@ export default function ControlCenter() {
                 id={`qr-modal-svg-${qrModalProblem.id}`}
                 value={
                   typeof window !== 'undefined'
-                    ? `${window.location.origin}/problem-statement/${qrModalProblem.id}`
-                    : `/problem-statement/${qrModalProblem.id}`
+                    ? `${window.location.origin}/ps/${qrModalProblem.accessToken || qrModalProblem.id}`
+                    : `/ps/${qrModalProblem.accessToken || qrModalProblem.id}`
                 }
                 size={220}
                 bgColor="#FFFFFF"
@@ -1537,23 +1564,29 @@ export default function ControlCenter() {
                 </span>
               </div>
               <div className="flex justify-between items-center">
+                <span className="text-foreground/70">Assigned Secure Token:</span>
+                <span className="font-mono text-amber-300 font-bold">
+                  {qrModalProblem.accessToken || qrModalProblem.id}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
                 <span className="text-foreground/70">Assigned URL:</span>
                 <span className="font-mono text-cyan-400 truncate max-w-[200px]">
-                  /problem-statement/{qrModalProblem.id}
+                  /ps/{qrModalProblem.accessToken || qrModalProblem.id}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-3 pt-2">
+            <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
               <button
                 onClick={() => {
-                  const url = `${window.location.origin}/problem-statement/${qrModalProblem.id}`;
+                  const url = `${window.location.origin}/ps/${qrModalProblem.accessToken || qrModalProblem.id}`;
                   navigator.clipboard.writeText(url);
                   setQrCopied(true);
-                  toast.success('QR URL copied to clipboard!');
+                  toast.success('Secure QR URL copied to clipboard!');
                   setTimeout(() => setQrCopied(false), 2000);
                 }}
-                className="btn-secondary py-2.5 px-4 text-xs font-bold inline-flex items-center gap-1.5"
+                className="btn-secondary py-2 px-3 text-xs font-bold inline-flex items-center gap-1.5"
               >
                 {qrCopied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-cyan-400" />}
                 {qrCopied ? 'Copied!' : 'Copy URL'}
@@ -1561,14 +1594,22 @@ export default function ControlCenter() {
 
               <button
                 onClick={() => handleDownloadQRImage(qrModalProblem)}
-                className="btn-primary py-2.5 px-4 text-xs font-bold inline-flex items-center gap-1.5"
+                className="btn-primary py-2 px-3 text-xs font-bold inline-flex items-center gap-1.5"
               >
                 <Download className="w-4 h-4" /> Download PNG
               </button>
 
               <button
+                onClick={() => handleRegenerateToken(qrModalProblem.id)}
+                className="px-3 py-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
+                title="Generate a new secure access token for this problem"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Reset Token
+              </button>
+
+              <button
                 onClick={() => setQrModalProblem(null)}
-                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-foreground/80"
+                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-foreground/80"
               >
                 Close
               </button>

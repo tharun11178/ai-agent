@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { dbAll, dbGet, dbRun } from '../db/database';
+import { dbGet, dbRun } from '../db/database';
 
 const router = Router();
 
@@ -12,16 +12,29 @@ const parseJsonArray = (str: string, fallback: string[] = []) => {
   }
 };
 
-// GET /api/problem-statement/:id
-// Public endpoint for participants scanning specific QR codes (e.g. /problem-statement/1)
-router.get('/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
+// GET /api/problem-statement/access/:token OR /api/problem-statement/:token
+// Secure isolated endpoint for participants scanning a specific QR code token (e.g. /ps/a91kD82LmX)
+const getProblemByToken = async (req: Request, res: Response) => {
+  const token = req.params.token || req.params.id;
+
+  if (!token) {
+    res.status(400).json({
+      success: false,
+      released: false,
+      message: 'Access key is required.',
+    });
+    return;
+  }
 
   try {
-    // Try finding by exact ID, or normalized ID (e.g., '1' vs 'prob-01')
-    let problem = await dbGet<any>(`SELECT * FROM problems WHERE id = ?`, [id]);
+    // Search by accessToken first, or fallback to exact ID
+    let problem = await dbGet<any>(
+      `SELECT * FROM problems WHERE accessToken = ? OR id = ?`,
+      [token, token]
+    );
+
     if (!problem) {
-      const paddedId = `prob-${id.padStart(2, '0')}`;
+      const paddedId = `prob-${token.padStart(2, '0')}`;
       problem = await dbGet<any>(`SELECT * FROM problems WHERE id = ?`, [paddedId]);
     }
 
@@ -29,12 +42,12 @@ router.get('/:id', async (req: Request, res: Response) => {
       res.status(404).json({
         success: false,
         released: false,
-        message: 'Problem statement not found.',
+        message: 'Invalid access key or problem statement not found.',
       });
       return;
     }
 
-    // Record Scan Analytics
+    // Record Scan Analytics silently
     const now = new Date().toISOString();
     await dbRun(
       `UPDATE problems
@@ -45,21 +58,18 @@ router.get('/:id', async (req: Request, res: Response) => {
       [now, now, problem.id]
     );
 
-    // If NOT released, return locked response without revealing sensitive content
+    // If NOT released, return locked response without revealing content or existence of other problems
     if (problem.status !== 'Released') {
       res.json({
         success: true,
         released: false,
-        id: problem.id,
-        status: problem.status,
         message: 'This problem statement has not yet been released by the organizers. Please wait for the official announcement.',
       });
       return;
     }
 
-    // If RELEASED, return complete problem details
+    // If RELEASED, return ONLY that specific problem statement (omitting sequence numbers or total counts)
     const formattedProblem = {
-      id: problem.id,
       title: problem.title,
       description: problem.description,
       objectives: parseJsonArray(problem.objectives),
@@ -69,7 +79,6 @@ router.get('/:id', async (req: Request, res: Response) => {
       difficulty: problem.difficulty || 'Medium',
       category: problem.category || 'AI Agents',
       attachments: parseJsonArray(problem.attachments || '[]'),
-      qrCode: problem.qrCode || `/problem-statement/${problem.id}`,
       updatedAt: problem.updatedAt,
     };
 
@@ -85,57 +94,19 @@ router.get('/:id', async (req: Request, res: Response) => {
       error: 'Failed to process problem statement request.',
     });
   }
-});
+};
+
+router.get('/access/:token', getProblemByToken);
+router.get('/:token', getProblemByToken);
 
 // GET /api/problem-statement
-// Public endpoint for participants visiting /problem-statement
-router.get('/', async (_req: Request, res: Response) => {
-  try {
-    const releasedProblems = await dbAll<any>(
-      `SELECT * FROM problems WHERE status = 'Released' ORDER BY id ASC`
-    );
-
-    if (!releasedProblems || releasedProblems.length === 0) {
-      res.json({
-        success: true,
-        released: false,
-        count: 0,
-        problems: [],
-        message: 'No problem statements have been released by the event organizers yet. Please wait until the official announcement.',
-      });
-      return;
-    }
-
-    const formattedProblems = releasedProblems.map((p) => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      objectives: parseJsonArray(p.objectives),
-      requirements: parseJsonArray(p.requirements),
-      constraints: parseJsonArray(p.constraints),
-      deliverables: parseJsonArray(p.deliverables),
-      difficulty: p.difficulty || 'Medium',
-      category: p.category || 'AI Agents',
-      attachments: parseJsonArray(p.attachments || '[]'),
-      qrCode: p.qrCode || `/problem-statement/${p.id}`,
-      updatedAt: p.updatedAt,
-    }));
-
-    res.json({
-      success: true,
-      released: true,
-      count: formattedProblems.length,
-      problems: formattedProblems,
-    });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      released: false,
-      count: 0,
-      problems: [],
-      error: 'Failed to fetch released problem statements.',
-    });
-  }
+// Lock down public listing of all problem statements to enforce 1-to-1 QR isolation
+router.get('/', (_req: Request, res: Response) => {
+  res.status(403).json({
+    success: false,
+    released: false,
+    message: 'Direct browsing of problem statements is restricted. Please scan your assigned QR code to access your problem statement.',
+  });
 });
 
 export default router;

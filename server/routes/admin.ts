@@ -61,7 +61,8 @@ router.get('/problems', async (_req: Request, res: Response) => {
       deliverables: parseJsonArray(p.deliverables),
       attachments: parseJsonArray(p.attachments || '[]'),
       assignedTeamIds: parseJsonArray(p.assignedTeamIds || '[]'),
-      qrCode: p.qrCode || `/problem-statement/${p.id}`,
+      accessToken: p.accessToken || p.id,
+      qrCode: p.qrCode || `/ps/${p.accessToken || p.id}`,
       scanCount: p.scanCount || 0,
       firstScannedAt: p.firstScannedAt || null,
       lastScannedAt: p.lastScannedAt || null,
@@ -114,7 +115,7 @@ router.post('/problems', async (req: Request, res: Response) => {
 
   try {
     if (id) {
-      // Update existing problem statement (preserving QR code & ID)
+      // Update existing problem statement (preserving QR code & accessToken)
       await dbRun(
         `UPDATE problems
          SET title = ?, description = ?, objectives = ?, requirements = ?, constraints = ?, deliverables = ?,
@@ -126,16 +127,17 @@ router.post('/problems', async (req: Request, res: Response) => {
       await logAdminActivity(adminUser, 'PROBLEM_UPDATED', `Updated problem statement '${title.trim()}' (${validStatus})`);
       res.json({ success: true, message: 'Problem statement updated successfully.' });
     } else {
-      // Create new problem statement draft
+      // Create new problem statement draft with secure access token
       const problemCount = await dbGet<{ count: number }>(`SELECT COUNT(*) as count FROM problems`);
       const newNum = (problemCount?.count || 0) + 1;
       const newId = String(newNum);
-      const qrUrl = `/problem-statement/${newId}`;
+      const token = nanoid(10);
+      const qrUrl = `/ps/${token}`;
 
       await dbRun(
-        `INSERT INTO problems (id, title, description, objectives, requirements, constraints, deliverables, difficulty, category, attachments, status, qrCode, scanCount, createdAt, updatedAt, releasedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
-        [newId, title.trim(), description.trim(), objStr, reqStr, conStr, delStr, validDifficulty, validCategory, attStr, validStatus, qrUrl, now, now, validStatus === 'Released' ? now : null]
+        `INSERT INTO problems (id, title, description, objectives, requirements, constraints, deliverables, difficulty, category, attachments, status, accessToken, qrCode, scanCount, createdAt, updatedAt, releasedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+        [newId, title.trim(), description.trim(), objStr, reqStr, conStr, delStr, validDifficulty, validCategory, attStr, validStatus, token, qrUrl, now, now, validStatus === 'Released' ? now : null]
       );
       await logAdminActivity(adminUser, 'PROBLEM_CREATED', `Created problem statement '${title.trim()}' (${validStatus})`);
       res.status(201).json({ success: true, id: newId, message: 'Problem statement created successfully.' });
@@ -227,6 +229,40 @@ router.post('/problems/batch-status', async (req: Request, res: Response) => {
     }
   } catch (err: any) {
     res.status(500).json({ success: false, error: 'Failed to execute batch status update.' });
+  }
+});
+
+// POST Regenerate Token for Problem Statement
+router.post('/problems/:id/regenerate-token', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const adminUser = (req as any).adminUser?.username || 'admin';
+
+  try {
+    const prob = await dbGet<any>(`SELECT id, title FROM problems WHERE id = ?`, [id]);
+    if (!prob) {
+      res.status(404).json({ success: false, error: 'Problem statement not found.' });
+      return;
+    }
+
+    const newToken = nanoid(10);
+    const newQrUrl = `/ps/${newToken}`;
+    const now = new Date().toISOString();
+
+    await dbRun(
+      `UPDATE problems SET accessToken = ?, qrCode = ?, updatedAt = ? WHERE id = ?`,
+      [newToken, newQrUrl, now, id]
+    );
+
+    await logAdminActivity(adminUser, 'PROBLEM_TOKEN_REGENERATED', `Regenerated secure QR token for '${prob.title}'`);
+
+    res.json({
+      success: true,
+      accessToken: newToken,
+      qrCode: newQrUrl,
+      message: `Regenerated secure QR code token for '${prob.title}'.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to regenerate token.' });
   }
 });
 
