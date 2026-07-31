@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useLocation } from 'wouter';
+import { useLocation, useRoute } from 'wouter';
 import {
   FileText,
   Target,
@@ -45,38 +45,57 @@ interface ProblemData {
 
 export default function ProblemStatementPage() {
   const [, navigate] = useLocation();
+  const [match, params] = useRoute('/problem-statement/:id');
+
   const [loading, setLoading] = useState(true);
   const [released, setReleased] = useState(false);
   const [problems, setProblems] = useState<ProblemData[]>([]);
   const [selectedProblem, setSelectedProblem] = useState<ProblemData | null>(null);
   const [copied, setCopied] = useState(false);
+  const [targetId, setTargetId] = useState<string | null>(null);
 
   // Search & Category Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  useEffect(() => {
-    fetchProblemStatus();
-  }, []);
+  const scannedId = match && params?.id ? params.id : null;
 
-  const fetchProblemStatus = async () => {
+  useEffect(() => {
+    fetchProblemStatus(scannedId);
+  }, [scannedId]);
+
+  const fetchProblemStatus = async (idParam?: string | null) => {
     setLoading(true);
+    setTargetId(idParam || null);
     try {
-      const res = await apiFetch('/api/problem-statement');
-      const data = await res.json();
-      if (data.success && data.released && data.problems && data.problems.length > 0) {
-        setReleased(true);
-        setProblems(data.problems);
-        // If exactly 1 problem released, auto-select it
-        if (data.problems.length === 1) {
-          setSelectedProblem(data.problems[0]);
+      if (idParam) {
+        const res = await apiFetch(`/api/problem-statement/${idParam}`);
+        const data = await res.json();
+        if (data.success && data.released && data.problem) {
+          setReleased(true);
+          setSelectedProblem(data.problem);
+          setProblems([data.problem]);
         } else {
+          setReleased(false);
           setSelectedProblem(null);
+          setProblems([]);
         }
       } else {
-        setReleased(false);
-        setProblems([]);
-        setSelectedProblem(null);
+        const res = await apiFetch('/api/problem-statement');
+        const data = await res.json();
+        if (data.success && data.released && data.problems && data.problems.length > 0) {
+          setReleased(true);
+          setProblems(data.problems);
+          if (data.problems.length === 1) {
+            setSelectedProblem(data.problems[0]);
+          } else {
+            setSelectedProblem(null);
+          }
+        } else {
+          setReleased(false);
+          setProblems([]);
+          setSelectedProblem(null);
+        }
       }
     } catch {
       setReleased(false);
@@ -203,7 +222,7 @@ export default function ProblemStatementPage() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={fetchProblemStatus}
+              onClick={() => fetchProblemStatus(scannedId)}
               className="btn-primary py-3 px-6 text-sm font-bold inline-flex items-center gap-2"
             >
               <RefreshCw className="w-4 h-4 text-cyan-300" /> Refresh Release Status

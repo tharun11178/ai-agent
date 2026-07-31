@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   Shield,
   Users,
@@ -29,6 +30,8 @@ import {
   CheckCircle2,
   Copy,
   Layers,
+  QrCode,
+  Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
@@ -74,6 +77,11 @@ interface ProblemStatement {
   category: string;
   attachments?: string[];
   status: 'Draft' | 'Released' | 'Hidden' | string;
+  qrCode?: string;
+  scanCount?: number;
+  firstScannedAt?: string | null;
+  lastScannedAt?: string | null;
+  releasedAt?: string | null;
   assignedTeamIds?: string[];
   updatedAt: string;
   createdAt: string;
@@ -126,6 +134,16 @@ export default function ControlCenter() {
   // Event Config Form
   const [configMaxTeams, setConfigMaxTeams] = useState<number>(100);
   const [updatingConfig, setUpdatingConfig] = useState(false);
+
+  // Problem Table Filters, Pagination, Selection, & QR Modal State
+  const [problemSearch, setProblemSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Draft' | 'Released' | 'Hidden'>('All');
+  const [difficultyFilter, setDifficultyFilter] = useState<'All' | 'Easy' | 'Medium' | 'Hard'>('All');
+  const [problemPage, setProblemPage] = useState(1);
+  const problemItemsPerPage = 10;
+  const [selectedProblemIds, setSelectedProblemIds] = useState<string[]>([]);
+  const [qrModalProblem, setQrModalProblem] = useState<ProblemStatement | null>(null);
+  const [qrCopied, setQrCopied] = useState(false);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -243,6 +261,64 @@ export default function ControlCenter() {
     } catch {
       toast.error('Failed to communicate with server.');
     }
+  };
+
+  // Batch Status Change (Release Selected, Release All, Hide Selected, Hide All)
+  const handleBatchStatusChange = async (ids: string[] | 'all', newStatus: 'Draft' | 'Released' | 'Hidden') => {
+    if (!token) return;
+    try {
+      const response = await apiFetch('/api/admin/problems/batch-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ids, status: newStatus }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message || `Bulk status updated to ${newStatus}!`);
+        setSelectedProblemIds([]);
+        fetchAdminData(token);
+      } else {
+        toast.error(data.error || 'Failed to update batch status.');
+      }
+    } catch {
+      toast.error('Failed to communicate with server for bulk update.');
+    }
+  };
+
+  // Download QR Code image as PNG
+  const handleDownloadQRImage = (prob: ProblemStatement) => {
+    const svgElement = document.getElementById(`qr-svg-${prob.id}`);
+    if (!svgElement) {
+      toast.error('QR element not ready.');
+      return;
+    }
+
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = () => {
+      canvas.width = 400;
+      canvas.height = 400;
+      if (ctx) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, 400, 400);
+        ctx.drawImage(img, 20, 20, 360, 360);
+      }
+      const pngFile = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.download = `AI_Agent_Challenge_Problem_${prob.id}_QR.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+      toast.success(`Downloaded QR Code PNG for Problem ${prob.id}!`);
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
   };
 
   // Duplicate Problem Statement
@@ -452,6 +528,43 @@ export default function ControlCenter() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // Search, Filter, & Pagination Logic for Problems Table
+  const filteredProblemsList = problems.filter((p) => {
+    const matchesSearch =
+      p.id.toLowerCase().includes(problemSearch.toLowerCase()) ||
+      p.title.toLowerCase().includes(problemSearch.toLowerCase()) ||
+      p.category.toLowerCase().includes(problemSearch.toLowerCase());
+    const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+    const matchesDifficulty = difficultyFilter === 'All' || p.difficulty === difficultyFilter;
+    return matchesSearch && matchesStatus && matchesDifficulty;
+  });
+
+  const totalProblemPages = Math.ceil(filteredProblemsList.length / problemItemsPerPage) || 1;
+  const paginatedProblemsList = filteredProblemsList.slice(
+    (problemPage - 1) * problemItemsPerPage,
+    problemPage * problemItemsPerPage
+  );
+
+  const isAllOnPageSelected =
+    paginatedProblemsList.length > 0 &&
+    paginatedProblemsList.every((p) => selectedProblemIds.includes(p.id));
+
+  const toggleSelectAllOnPage = () => {
+    if (isAllOnPageSelected) {
+      const pageIds = paginatedProblemsList.map((p) => p.id);
+      setSelectedProblemIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+    } else {
+      const pageIds = paginatedProblemsList.map((p) => p.id);
+      setSelectedProblemIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  const toggleSelectProblem = (id: string) => {
+    setSelectedProblemIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
 
   if (!token) {
     return (
@@ -778,164 +891,352 @@ export default function ControlCenter() {
 
           {/* TAB 3: MULTI-PROBLEM STATEMENT MANAGEMENT SYSTEM */}
           {activeTab === 'problems' && (
-            <motion.div variants={itemVariants} className="space-y-8">
-              {/* Header Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="glass-card p-6 border-l-4 border-green-500 space-y-1">
-                  <span className="text-xs font-semibold text-foreground/60">Released Statements</span>
-                  <p className="text-3xl font-bold text-green-400">
-                    {problems.filter((p) => p.status === 'Released').length}
-                  </p>
-                  <span className="text-[11px] text-foreground/50">Live and visible to participants</span>
-                </div>
-
-                <div className="glass-card p-6 border-l-4 border-amber-500 space-y-1">
-                  <span className="text-xs font-semibold text-foreground/60">Draft Statements</span>
-                  <p className="text-3xl font-bold text-amber-400">
-                    {problems.filter((p) => p.status === 'Draft').length}
-                  </p>
-                  <span className="text-[11px] text-foreground/50">Saved in editor, unreleased</span>
-                </div>
-
-                <div className="glass-card p-6 border-l-4 border-red-500 space-y-1">
-                  <span className="text-xs font-semibold text-foreground/60">Hidden Statements</span>
-                  <p className="text-3xl font-bold text-red-400">
-                    {problems.filter((p) => p.status === 'Hidden').length}
-                  </p>
-                  <span className="text-[11px] text-foreground/50">Archived or hidden from public</span>
-                </div>
-              </div>
-
-              {/* Table of All Problem Statements */}
-              <div className="glass-card overflow-hidden">
-                <div className="p-6 border-b border-primary/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <h3 className="text-xl font-bold flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-cyan-400" /> All Problem Statements ({problems.length})
-                    </h3>
-                    <p className="text-xs text-foreground/60">
-                      Manage, preview, release, or duplicate problem statements.
-                    </p>
+              <motion.div variants={itemVariants} className="space-y-8">
+                {/* Header Stats */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
+                  <div className="glass-card p-6 border-l-4 border-cyan-500 space-y-1">
+                    <span className="text-xs font-semibold text-foreground/60">Total Problem Statements</span>
+                    <p className="text-3xl font-bold text-cyan-300">{problems.length}</p>
+                    <span className="text-[11px] text-foreground/50">11 QR Codes Configured</span>
                   </div>
 
-                  <button
-                    onClick={handleClearProblemForm}
-                    className="btn-primary py-2 px-4 text-xs font-bold inline-flex items-center gap-2 w-fit"
-                  >
-                    <PlusCircle className="w-4 h-4" /> Add New Problem
-                  </button>
+                  <div className="glass-card p-6 border-l-4 border-green-500 space-y-1">
+                    <span className="text-xs font-semibold text-foreground/60">Released Statements</span>
+                    <p className="text-3xl font-bold text-green-400">
+                      {problems.filter((p) => p.status === 'Released').length}
+                    </p>
+                    <span className="text-[11px] text-foreground/50">Live and accessible to participants</span>
+                  </div>
+
+                  <div className="glass-card p-6 border-l-4 border-amber-500 space-y-1">
+                    <span className="text-xs font-semibold text-foreground/60">Draft Statements</span>
+                    <p className="text-3xl font-bold text-amber-400">
+                      {problems.filter((p) => p.status === 'Draft').length}
+                    </p>
+                    <span className="text-[11px] text-foreground/50">Saved in editor, locked</span>
+                  </div>
+
+                  <div className="glass-card p-6 border-l-4 border-purple-500 space-y-1">
+                    <span className="text-xs font-semibold text-foreground/60">Total QR Scans</span>
+                    <p className="text-3xl font-bold text-purple-300">
+                      {problems.reduce((acc, p) => acc + (p.scanCount || 0), 0)}
+                    </p>
+                    <span className="text-[11px] text-foreground/50">Across all 11 QR codes</span>
+                  </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-white/5 border-b border-primary/10 text-foreground/70 uppercase text-xs">
-                      <tr>
-                        <th className="py-3.5 px-4 font-semibold">ID</th>
-                        <th className="py-3.5 px-4 font-semibold">Title</th>
-                        <th className="py-3.5 px-4 font-semibold">Category</th>
-                        <th className="py-3.5 px-4 font-semibold">Difficulty</th>
-                        <th className="py-3.5 px-4 font-semibold">Status</th>
-                        <th className="py-3.5 px-4 font-semibold">Updated</th>
-                        <th className="py-3.5 px-4 text-right font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-primary/10">
-                      {problems.length === 0 ? (
+                {/* Bulk Actions & Search Filters Bar */}
+                <div className="glass-card p-6 space-y-4 glow-border">
+                  <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                      {/* Search */}
+                      <div className="relative w-full sm:w-64">
+                        <Search className="w-4 h-4 absolute left-3 top-3 text-foreground/50" />
+                        <input
+                          type="text"
+                          value={problemSearch}
+                          onChange={(e) => {
+                            setProblemSearch(e.target.value);
+                            setProblemPage(1);
+                          }}
+                          placeholder="Search problem ID or title..."
+                          className="w-full pl-9 pr-4 py-2 rounded-xl bg-white/10 border border-primary/20 focus:border-primary/50 text-xs focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Status Filter */}
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value as any);
+                          setProblemPage(1);
+                        }}
+                        className="px-3 py-2 rounded-xl bg-[#0F172A] border border-primary/20 text-xs font-semibold focus:outline-none"
+                      >
+                        <option value="All">All Statuses</option>
+                        <option value="Draft">Draft</option>
+                        <option value="Released">Released</option>
+                        <option value="Hidden">Hidden</option>
+                      </select>
+
+                      {/* Difficulty Filter */}
+                      <select
+                        value={difficultyFilter}
+                        onChange={(e) => {
+                          setDifficultyFilter(e.target.value as any);
+                          setProblemPage(1);
+                        }}
+                        className="px-3 py-2 rounded-xl bg-[#0F172A] border border-primary/20 text-xs font-semibold focus:outline-none"
+                      >
+                        <option value="All">All Difficulties</option>
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                      </select>
+                    </div>
+
+                    {/* Bulk Actions Buttons */}
+                    <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-end">
+                      <button
+                        onClick={() => handleBatchStatusChange('all', 'Released')}
+                        className="px-3 py-2 rounded-xl bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/40 text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
+                      >
+                        🚀 Release ALL Problems
+                      </button>
+
+                      <button
+                        onClick={() => handleBatchStatusChange('all', 'Hidden')}
+                        className="px-3 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
+                      >
+                        🔒 Hide ALL Problems
+                      </button>
+
+                      {selectedProblemIds.length > 0 && (
+                        <>
+                          <button
+                            onClick={() => handleBatchStatusChange(selectedProblemIds, 'Released')}
+                            className="px-3 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
+                          >
+                            Release Selected ({selectedProblemIds.length})
+                          </button>
+
+                          <button
+                            onClick={() => handleBatchStatusChange(selectedProblemIds, 'Hidden')}
+                            className="px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
+                          >
+                            Hide Selected ({selectedProblemIds.length})
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table of All Problem Statements */}
+                <div className="glass-card overflow-hidden">
+                  <div className="p-6 border-b border-primary/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-cyan-400" /> Multi-QR Problem Management ({problems.length} Statements)
+                      </h3>
+                      <p className="text-xs text-foreground/60">
+                        Assigns 11 unique QR codes. Each QR code tracks scans and maintains individual release status.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={handleClearProblemForm}
+                      className="btn-primary py-2 px-4 text-xs font-bold inline-flex items-center gap-2 w-fit"
+                    >
+                      <PlusCircle className="w-4 h-4" /> Add New Problem
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-white/5 border-b border-primary/10 text-foreground/70 uppercase text-xs">
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-foreground/50">
-                            No problem statements created yet.
-                          </td>
+                          <th className="py-3.5 px-4 w-10">
+                            <input
+                              type="checkbox"
+                              checked={isAllOnPageSelected}
+                              onChange={toggleSelectAllOnPage}
+                              className="rounded border-white/20 bg-white/10"
+                            />
+                          </th>
+                          <th className="py-3.5 px-4 font-semibold">Problem ID</th>
+                          <th className="py-3.5 px-4 font-semibold">Title & Category</th>
+                          <th className="py-3.5 px-4 font-semibold">QR Code</th>
+                          <th className="py-3.5 px-4 font-semibold">Scan Count</th>
+                          <th className="py-3.5 px-4 font-semibold">Status</th>
+                          <th className="py-3.5 px-4 font-semibold">Last Updated</th>
+                          <th className="py-3.5 px-4 text-right font-semibold">Actions</th>
                         </tr>
-                      ) : (
-                        problems.map((prob) => (
-                          <tr key={prob.id} className="hover:bg-white/5 transition-colors">
-                            <td className="py-3.5 px-4 font-mono text-xs text-cyan-400">{prob.id}</td>
-                            <td className="py-3.5 px-4 font-bold text-white max-w-xs truncate">{prob.title}</td>
-                            <td className="py-3.5 px-4">
-                              <span className="px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 text-[11px] font-semibold">
-                                {prob.category}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                                prob.difficulty === 'Easy' ? 'bg-emerald-500/20 text-emerald-300' :
-                                prob.difficulty === 'Hard' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'
-                              }`}>
-                                {prob.difficulty}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold uppercase inline-flex items-center gap-1 ${
-                                prob.status === 'Released' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
-                                prob.status === 'Hidden' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
-                                'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                              }`}>
-                                {prob.status === 'Released' ? '🟢 Released' : prob.status === 'Hidden' ? '🔴 Hidden' : '🟡 Draft'}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-xs font-mono text-foreground/60">
-                              {new Date(prob.updatedAt).toLocaleDateString()}
-                            </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {prob.status === 'Released' ? (
-                                  <button
-                                    onClick={() => handleUpdateProblemStatus(prob.id, 'Hidden')}
-                                    className="px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold"
-                                    title="Hide Problem"
-                                  >
-                                    Hide
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleUpdateProblemStatus(prob.id, 'Released')}
-                                    className="px-2 py-1 rounded bg-green-500/10 hover:bg-green-500/20 text-green-300 text-xs font-semibold"
-                                    title="Release Problem"
-                                  >
-                                    Release
-                                  </button>
-                                )}
-
-                                <button
-                                  onClick={() => setPreviewProblem(prob)}
-                                  className="p-1.5 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-300"
-                                  title="Preview"
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                </button>
-
-                                <button
-                                  onClick={() => handleLoadProblemToEdit(prob)}
-                                  className="p-1.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300"
-                                  title="Edit"
-                                >
-                                  <Edit className="w-3.5 h-3.5" />
-                                </button>
-
-                                <button
-                                  onClick={() => handleDuplicateProblem(prob.id)}
-                                  className="p-1.5 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-300"
-                                  title="Duplicate"
-                                >
-                                  <Copy className="w-3.5 h-3.5" />
-                                </button>
-
-                                <button
-                                  onClick={() => handleDeleteProblem(prob.id)}
-                                  className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
+                      </thead>
+                      <tbody className="divide-y divide-primary/10">
+                        {paginatedProblemsList.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="py-8 text-center text-foreground/50">
+                              No problem statements found matching search and filters.
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                        ) : (
+                          paginatedProblemsList.map((prob) => (
+                            <tr key={prob.id} className="hover:bg-white/5 transition-colors">
+                              <td className="py-3.5 px-4">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedProblemIds.includes(prob.id)}
+                                  onChange={() => toggleSelectProblem(prob.id)}
+                                  className="rounded border-white/20 bg-white/10"
+                                />
+                              </td>
+                              <td className="py-3.5 px-4 font-mono text-xs font-bold text-cyan-400">
+                                Problem {prob.id}
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <div className="space-y-0.5 max-w-xs">
+                                  <p className="font-bold text-white truncate">{prob.title}</p>
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 text-[10px] font-semibold">
+                                      {prob.category}
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                      prob.difficulty === 'Easy' ? 'bg-emerald-500/20 text-emerald-300' :
+                                      prob.difficulty === 'Hard' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'
+                                    }`}>
+                                      {prob.difficulty}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Interactive QR Code Thumbnail */}
+                              <td className="py-3.5 px-4">
+                                <div
+                                  onClick={() => setQrModalProblem(prob)}
+                                  className="p-1.5 bg-white rounded-lg inline-block cursor-pointer border hover:border-cyan-400 hover:scale-105 transition-all shadow-md"
+                                  title="Click to view/download QR"
+                                >
+                                  <QRCodeSVG
+                                    id={`qr-svg-${prob.id}`}
+                                    value={
+                                      typeof window !== 'undefined'
+                                        ? `${window.location.origin}/problem-statement/${prob.id}`
+                                        : `/problem-statement/${prob.id}`
+                                    }
+                                    size={40}
+                                    bgColor="#FFFFFF"
+                                    fgColor="#0F172A"
+                                    level="M"
+                                  />
+                                </div>
+                              </td>
+
+                              {/* Scan Analytics Column */}
+                              <td className="py-3.5 px-4">
+                                <div className="space-y-0.5">
+                                  <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold font-mono inline-flex items-center gap-1">
+                                    <QrCode className="w-3 h-3" /> {prob.scanCount || 0} scans
+                                  </span>
+                                  {prob.lastScannedAt ? (
+                                    <p className="text-[10px] text-foreground/50 font-mono">
+                                      Last: {new Date(prob.lastScannedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                  ) : (
+                                    <p className="text-[10px] text-foreground/40 font-mono">No scans yet</p>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Status Badge */}
+                              <td className="py-3.5 px-4">
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold uppercase inline-flex items-center gap-1 ${
+                                  prob.status === 'Released' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                                  prob.status === 'Hidden' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                                  'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                }`}>
+                                  {prob.status === 'Released' ? '🟢 Released' : prob.status === 'Hidden' ? '🔴 Hidden' : '🟡 Draft'}
+                                </span>
+                              </td>
+
+                              <td className="py-3.5 px-4 text-xs font-mono text-foreground/60">
+                                {new Date(prob.updatedAt).toLocaleDateString()}
+                              </td>
+
+                              <td className="py-3.5 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {prob.status === 'Released' ? (
+                                    <button
+                                      onClick={() => handleUpdateProblemStatus(prob.id, 'Hidden')}
+                                      className="px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold"
+                                      title="Hide Problem"
+                                    >
+                                      Hide
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleUpdateProblemStatus(prob.id, 'Released')}
+                                      className="px-2 py-1 rounded bg-green-500/10 hover:bg-green-500/20 text-green-300 text-xs font-semibold"
+                                      title="Release Problem"
+                                    >
+                                      Release
+                                    </button>
+                                  )}
+
+                                  <button
+                                    onClick={() => setQrModalProblem(prob)}
+                                    className="p-1.5 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-300"
+                                    title="View QR Code & Analytics"
+                                  >
+                                    <QrCode className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => setPreviewProblem(prob)}
+                                    className="p-1.5 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300"
+                                    title="Preview Statement"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleLoadProblemToEdit(prob)}
+                                    className="p-1.5 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-300"
+                                    title="Edit Content"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDownloadQRImage(prob)}
+                                    className="p-1.5 rounded bg-green-500/10 hover:bg-green-500/20 text-green-300"
+                                    title="Download QR PNG"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDeleteProblem(prob.id)}
+                                    className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination for Problems Table */}
+                  {totalProblemPages > 1 && (
+                    <div className="p-4 border-t border-primary/10 flex items-center justify-between text-xs text-foreground/70">
+                      <span>
+                        Page {problemPage} of {totalProblemPages} ({filteredProblemsList.length} statements)
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          disabled={problemPage === 1}
+                          onClick={() => setProblemPage((prev) => Math.max(1, prev - 1))}
+                          className="p-1.5 rounded bg-white/10 disabled:opacity-30"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                          disabled={problemPage === totalProblemPages}
+                          onClick={() => setProblemPage((prev) => Math.min(totalProblemPages, prev + 1))}
+                          className="p-1.5 rounded bg-white/10 disabled:opacity-30"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
 
               {/* Form Editor */}
               <div className="glass-card p-6 md:p-8 space-y-6 glow-border">
@@ -1186,6 +1487,95 @@ export default function ControlCenter() {
           )}
         </motion.div>
       </section>
+
+      {/* QR Code Analytics & Download Modal */}
+      {qrModalProblem && (
+        <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glass-card p-6 md:p-8 max-w-md w-full space-y-6 glow-border border-2 border-cyan-400 text-center relative">
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">
+                QR CODE METRICS & ACCESS
+              </span>
+              <h3 className="text-xl font-extrabold text-white">
+                Problem Statement {qrModalProblem.id}
+              </h3>
+              <p className="text-xs text-foreground/70">{qrModalProblem.title}</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white shadow-2xl inline-block border-4 border-cyan-400/50">
+              <QRCodeSVG
+                id={`qr-modal-svg-${qrModalProblem.id}`}
+                value={
+                  typeof window !== 'undefined'
+                    ? `${window.location.origin}/problem-statement/${qrModalProblem.id}`
+                    : `/problem-statement/${qrModalProblem.id}`
+                }
+                size={220}
+                bgColor="#FFFFFF"
+                fgColor="#0F172A"
+                level="H"
+                includeMargin={true}
+              />
+            </div>
+
+            {/* Scan Analytics Stats */}
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-left space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-foreground/70">Total Scans:</span>
+                <span className="font-bold text-cyan-300 font-mono text-sm">{qrModalProblem.scanCount || 0}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-foreground/70">First Scan:</span>
+                <span className="font-mono text-foreground/90">
+                  {qrModalProblem.firstScannedAt ? new Date(qrModalProblem.firstScannedAt).toLocaleString() : 'Never'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-foreground/70">Last Scan:</span>
+                <span className="font-mono text-foreground/90">
+                  {qrModalProblem.lastScannedAt ? new Date(qrModalProblem.lastScannedAt).toLocaleString() : 'Never'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-foreground/70">Assigned URL:</span>
+                <span className="font-mono text-cyan-400 truncate max-w-[200px]">
+                  /problem-statement/{qrModalProblem.id}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/problem-statement/${qrModalProblem.id}`;
+                  navigator.clipboard.writeText(url);
+                  setQrCopied(true);
+                  toast.success('QR URL copied to clipboard!');
+                  setTimeout(() => setQrCopied(false), 2000);
+                }}
+                className="btn-secondary py-2.5 px-4 text-xs font-bold inline-flex items-center gap-1.5"
+              >
+                {qrCopied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-cyan-400" />}
+                {qrCopied ? 'Copied!' : 'Copy URL'}
+              </button>
+
+              <button
+                onClick={() => handleDownloadQRImage(qrModalProblem)}
+                className="btn-primary py-2.5 px-4 text-xs font-bold inline-flex items-center gap-1.5"
+              >
+                <Download className="w-4 h-4" /> Download PNG
+              </button>
+
+              <button
+                onClick={() => setQrModalProblem(null)}
+                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-foreground/80"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Admin Preview Modal */}
       {previewProblem && (

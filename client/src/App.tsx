@@ -48,6 +48,7 @@ function Router() {
         <Route path={"/dashboard"} component={Dashboard} />
         <Route path={"/schedule"} component={Schedule} />
         <Route path={"/problem-statement"} component={ProblemStatementPage} />
+        <Route path={"/problem-statement/:id"} component={ProblemStatementPage} />
         <Route path={"/control-center"} component={ControlCenter} />
         <Route path={"/403"} component={() => <ErrorPage code="403" />} />
         <Route path={"/500"} component={() => <ErrorPage code="500" />} />

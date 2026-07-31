@@ -42,7 +42,7 @@ router.delete('/registrations/:id', async (req: Request, res: Response) => {
 // GET Problems (All Draft, Released, and Hidden problems for Admin Management)
 router.get('/problems', async (_req: Request, res: Response) => {
   try {
-    const problems = await dbAll(`SELECT * FROM problems ORDER BY createdAt DESC`);
+    const problems = await dbAll(`SELECT * FROM problems ORDER BY id ASC`);
 
     const parseJsonArray = (str: string) => {
       try {
@@ -61,6 +61,11 @@ router.get('/problems', async (_req: Request, res: Response) => {
       deliverables: parseJsonArray(p.deliverables),
       attachments: parseJsonArray(p.attachments || '[]'),
       assignedTeamIds: parseJsonArray(p.assignedTeamIds || '[]'),
+      qrCode: p.qrCode || `/problem-statement/${p.id}`,
+      scanCount: p.scanCount || 0,
+      firstScannedAt: p.firstScannedAt || null,
+      lastScannedAt: p.lastScannedAt || null,
+      releasedAt: p.releasedAt || null,
     }));
 
     res.json({ success: true, problems: formatted });
@@ -109,23 +114,28 @@ router.post('/problems', async (req: Request, res: Response) => {
 
   try {
     if (id) {
-      // Update existing problem statement
+      // Update existing problem statement (preserving QR code & ID)
       await dbRun(
         `UPDATE problems
          SET title = ?, description = ?, objectives = ?, requirements = ?, constraints = ?, deliverables = ?,
-             difficulty = ?, category = ?, attachments = ?, status = ?, updatedAt = ?
+             difficulty = ?, category = ?, attachments = ?, status = ?, updatedAt = ?,
+             releasedAt = CASE WHEN ? = 'Released' AND (releasedAt IS NULL OR releasedAt = '') THEN ? ELSE releasedAt END
          WHERE id = ?`,
-        [title.trim(), description.trim(), objStr, reqStr, conStr, delStr, validDifficulty, validCategory, attStr, validStatus, now, id]
+        [title.trim(), description.trim(), objStr, reqStr, conStr, delStr, validDifficulty, validCategory, attStr, validStatus, now, validStatus, now, id]
       );
       await logAdminActivity(adminUser, 'PROBLEM_UPDATED', `Updated problem statement '${title.trim()}' (${validStatus})`);
       res.json({ success: true, message: 'Problem statement updated successfully.' });
     } else {
       // Create new problem statement draft
-      const newId = `prob-${nanoid(8)}`;
+      const problemCount = await dbGet<{ count: number }>(`SELECT COUNT(*) as count FROM problems`);
+      const newNum = (problemCount?.count || 0) + 1;
+      const newId = String(newNum);
+      const qrUrl = `/problem-statement/${newId}`;
+
       await dbRun(
-        `INSERT INTO problems (id, title, description, objectives, requirements, constraints, deliverables, difficulty, category, attachments, status, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [newId, title.trim(), description.trim(), objStr, reqStr, conStr, delStr, validDifficulty, validCategory, attStr, validStatus, now, now]
+        `INSERT INTO problems (id, title, description, objectives, requirements, constraints, deliverables, difficulty, category, attachments, status, qrCode, scanCount, createdAt, updatedAt, releasedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+        [newId, title.trim(), description.trim(), objStr, reqStr, conStr, delStr, validDifficulty, validCategory, attStr, validStatus, qrUrl, now, now, validStatus === 'Released' ? now : null]
       );
       await logAdminActivity(adminUser, 'PROBLEM_CREATED', `Created problem statement '${title.trim()}' (${validStatus})`);
       res.status(201).json({ success: true, id: newId, message: 'Problem statement created successfully.' });
@@ -155,7 +165,14 @@ router.post('/problems/:id/status', async (req: Request, res: Response) => {
       return;
     }
 
-    await dbRun(`UPDATE problems SET status = ?, updatedAt = ? WHERE id = ?`, [status, now, id]);
+    await dbRun(
+      `UPDATE problems
+       SET status = ?,
+           updatedAt = ?,
+           releasedAt = CASE WHEN ? = 'Released' AND (releasedAt IS NULL OR releasedAt = '') THEN ? ELSE releasedAt END
+       WHERE id = ?`,
+      [status, now, status, now, id]
+    );
     await logAdminActivity(adminUser, 'PROBLEM_STATUS_CHANGED', `Changed status for '${prob.title}' to '${status}'`);
 
     res.json({
@@ -165,6 +182,51 @@ router.post('/problems/:id/status', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: 'Failed to update problem status.' });
+  }
+});
+
+// POST Batch Status Update (Release All, Release Selected, Hide All, Hide Selected)
+router.post('/problems/batch-status', async (req: Request, res: Response) => {
+  const adminUser = (req as any).adminUser?.username || 'admin';
+  const { ids, status } = req.body || {};
+
+  if (!['Draft', 'Released', 'Hidden'].includes(status)) {
+    res.status(400).json({ success: false, error: "Status must be 'Draft', 'Released', or 'Hidden'." });
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  try {
+    if (ids === 'all' || !Array.isArray(ids)) {
+      await dbRun(
+        `UPDATE problems
+         SET status = ?,
+             updatedAt = ?,
+             releasedAt = CASE WHEN ? = 'Released' THEN ? ELSE releasedAt END`,
+        [status, now, status, now]
+      );
+      await logAdminActivity(adminUser, 'BATCH_PROBLEM_STATUS', `Updated ALL problem statements to status '${status}'`);
+      res.json({ success: true, message: `All problem statements set to ${status}.` });
+    } else {
+      if (ids.length === 0) {
+        res.status(400).json({ success: false, error: 'No problem IDs provided for bulk status update.' });
+        return;
+      }
+      const placeholders = ids.map(() => '?').join(',');
+      await dbRun(
+        `UPDATE problems
+         SET status = ?,
+             updatedAt = ?,
+             releasedAt = CASE WHEN ? = 'Released' THEN ? ELSE releasedAt END
+         WHERE id IN (${placeholders})`,
+        [status, now, status, now, ...ids]
+      );
+      await logAdminActivity(adminUser, 'BATCH_PROBLEM_STATUS', `Updated ${ids.length} problem statement(s) to status '${status}'`);
+      res.json({ success: true, message: `${ids.length} problem statement(s) updated to ${status}.` });
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: 'Failed to execute batch status update.' });
   }
 });
 
