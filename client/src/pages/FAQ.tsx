@@ -138,7 +138,21 @@ export default function FAQ() {
               Contact our event coordination team for assistance and inquiries.
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-xl mx-auto mb-8 text-left">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto mb-8 text-left">
+              <a
+                href="tel:8309723299"
+                className="glass-card p-6 flex items-center gap-4 hover:border-cyan-400/50 transition-all cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                  <Phone className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-lg">R. Hemalatha</h4>
+                  <p className="text-cyan-400 font-mono text-sm font-semibold">+91 83097 23299</p>
+                  <p className="text-xs text-foreground/60">Event Coordinator</p>
+                </div>
+              </a>
+
               <a
                 href="tel:7032401370"
                 className="glass-card p-6 flex items-center gap-4 hover:border-primary/50 transition-all cursor-pointer"
@@ -148,7 +162,7 @@ export default function FAQ() {
                 </div>
                 <div>
                   <h4 className="font-bold text-lg">Tharun</h4>
-                  <p className="text-primary font-mono text-base font-semibold">+91 70324 01370</p>
+                  <p className="text-primary font-mono text-sm font-semibold">+91 70324 01370</p>
                   <p className="text-xs text-foreground/60">Event Coordinator</p>
                 </div>
               </a>
@@ -162,7 +176,7 @@ export default function FAQ() {
                 </div>
                 <div>
                   <h4 className="font-bold text-lg">Praveen</h4>
-                  <p className="text-secondary font-mono text-base font-semibold">+91 70137 82068</p>
+                  <p className="text-secondary font-mono text-sm font-semibold">+91 70137 82068</p>
                   <p className="text-xs text-foreground/60">Event Coordinator</p>
                 </div>
               </a>

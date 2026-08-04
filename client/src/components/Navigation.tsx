@@ -1,6 +1,6 @@
 import { useLocation } from 'wouter';
 import { motion } from 'framer-motion';
-import { Menu, X, Cpu, GraduationCap, Sparkles } from 'lucide-react';
+import { Menu, X, Cpu, GraduationCap, Sparkles, Phone } from 'lucide-react';
 import { useState } from 'react';
 
 export function Navigation() {
@@ -30,9 +30,23 @@ export function Navigation() {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-[#0F172A]/75 border-b border-primary/20 shadow-[0_4px_30px_rgba(0,0,0,0.4)]"
+      className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-[#0F172A]/90 border-b border-primary/20 shadow-[0_4px_30px_rgba(0,0,0,0.4)]"
     >
-      <div className="container flex items-center justify-between h-20 px-4 md:px-6">
+      {/* Top Banner for Event Coordinator */}
+      <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-purple-950 border-b border-cyan-500/20 py-1.5 px-4 text-center text-xs font-medium text-cyan-200 flex items-center justify-center gap-2 flex-wrap">
+        <span className="inline-flex items-center gap-1 text-cyan-400 font-bold uppercase tracking-wider text-[11px]">
+          <Phone className="w-3.5 h-3.5 text-cyan-400" /> Event Coordinator:
+        </span>
+        <span className="font-semibold text-white">R. Hemalatha</span>
+        <a
+          href="tel:8309723299"
+          className="text-cyan-300 hover:text-white font-mono font-bold transition-colors bg-white/10 hover:bg-cyan-500/20 px-2.5 py-0.5 rounded-full border border-cyan-400/30 flex items-center gap-1"
+        >
+          +91 83097 23299
+        </a>
+      </div>
+
+      <div className="container flex items-center justify-between h-16 px-4 md:px-6">
         {/* Left: Kuppam Engineering College Logo & Emblem */}
         <motion.div
           whileHover={{ scale: 1.02 }}

@@ -79,6 +79,10 @@ export function Footer() {
             <h3 className="font-bold text-white text-base">Event Coordination</h3>
             <ul className="space-y-2.5 text-sm">
               <li className="flex items-center gap-2 text-gray-200 hover:text-cyan-300 transition-colors">
+                <Phone className="w-4 h-4 text-cyan-400" />
+                <span>R. Hemalatha: <strong>+91 8309723299</strong></span>
+              </li>
+              <li className="flex items-center gap-2 text-gray-200 hover:text-cyan-300 transition-colors">
                 <Phone className="w-4 h-4 text-blue-400" />
                 <span>Tharun: <strong>+91 7032401370</strong></span>
               </li>
