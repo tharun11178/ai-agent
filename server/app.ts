@@ -20,6 +20,14 @@ export async function createExpressApp(): Promise<Express> {
   // Configure Helmet, CORS, Compression, and Payload limits
   setupSecurityMiddleware(app);
 
+  // Default Cache-Control for dynamic API endpoints
+  app.use('/api', (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+  });
+
   // Mount API Routers
   app.use('/api/auth', authRoutes);
   app.use('/api/problem-statement', problemRoutes);

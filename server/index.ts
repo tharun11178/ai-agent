@@ -10,6 +10,10 @@ async function startServer() {
   const app = await createExpressApp();
   const server = createServer(app);
 
+  // Enable HTTP Keep-Alive for fast subsequent connections (optimized for Render proxy)
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
+
   // Global Error Handler Middleware
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Unhandled API Server Error:', err);
@@ -23,7 +27,7 @@ async function startServer() {
   if (process.env.CATALYST_ENV === undefined) {
     const port = Number(process.env.PORT) || 3000;
     server.listen(port, '0.0.0.0', () => {
-      console.log(`🚀 Production-ready server running on port ${port}`);
+      console.log(`🚀 Production server listening on port ${port}`);
     });
   }
 }

@@ -8,7 +8,7 @@ export function setupSecurityMiddleware(app: Express): void {
   app.use(
     compression({
       level: 6,
-      threshold: 1024,
+      threshold: 512,
     })
   );
 

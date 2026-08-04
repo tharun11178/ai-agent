@@ -1,7 +1,9 @@
+import { lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
-import { FuturisticRobotVisual } from './FuturisticRobotVisual';
 import { Rocket, ExternalLink, ChevronDown, Sparkles, Trophy, Calendar, Users, Award, ShieldCheck, FileText } from 'lucide-react';
+
+const FuturisticRobotVisual = lazy(() => import('./FuturisticRobotVisual').then(m => ({ default: m.FuturisticRobotVisual })));
 
 export function HeroSection() {
   const [, navigate] = useLocation();
@@ -161,7 +163,9 @@ export function HeroSection() {
 
         {/* Right Side: Futuristic AI Robot Visual */}
         <motion.div variants={itemVariants} className="lg:col-span-5 flex justify-center">
-          <FuturisticRobotVisual />
+          <Suspense fallback={null}>
+            <FuturisticRobotVisual />
+          </Suspense>
         </motion.div>
       </motion.div>
 

@@ -239,14 +239,31 @@ export default defineConfig(({ command }) => {
     sourcemap: false,
     minify: "esbuild",
     cssMinify: true,
+    reportCompressedSize: false,
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          "vendor-react": ["react", "react-dom", "wouter"],
-          "vendor-framer": ["framer-motion"],
-          "vendor-icons": ["lucide-react"],
-          "vendor-utils": ["clsx", "tailwind-merge"],
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react") || id.includes("react-dom") || id.includes("wouter")) {
+              return "vendor-react";
+            }
+            if (id.includes("framer-motion")) {
+              return "vendor-framer";
+            }
+            if (id.includes("lucide-react")) {
+              return "vendor-icons";
+            }
+            if (id.includes("@radix-ui") || id.includes("sonner")) {
+              return "vendor-ui";
+            }
+            if (id.includes("qrcode.react")) {
+              return "vendor-qr";
+            }
+            if (id.includes("clsx") || id.includes("tailwind-merge") || id.includes("zod")) {
+              return "vendor-utils";
+            }
+          }
         },
       },
     },

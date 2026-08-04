@@ -31,6 +31,14 @@ const DB_PATH = path.join(DATA_DIR, 'challenge.db');
 const sqlite = sqlite3.verbose();
 export const db = new sqlite.Database(DB_PATH);
 
+// Fast SQLite performance settings for low latency & fast startup
+db.exec(`
+  PRAGMA journal_mode = WAL;
+  PRAGMA synchronous = NORMAL;
+  PRAGMA cache_size = -64000;
+  PRAGMA temp_store = MEMORY;
+`);
+
 // Helper wrappers for Async/Await database operations
 export function dbRun(sql: string, params: any[] = []): Promise<{ lastID?: number; changes?: number }> {
   return new Promise((resolve, reject) => {

@@ -1,7 +1,9 @@
+import { lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { HeroSection } from '@/components/HeroSection';
-import { QRCodeSection } from '@/components/QRCodeSection';
+
+const QRCodeSection = lazy(() => import('@/components/QRCodeSection').then(m => ({ default: m.QRCodeSection })));
 
 export default function Home() {
   const [, navigate] = useLocation();
@@ -136,7 +138,9 @@ export default function Home() {
       </section>
 
       {/* QR Code Section */}
-      <QRCodeSection />
+      <Suspense fallback={null}>
+        <QRCodeSection />
+      </Suspense>
 
       {/* CTA Section */}
       <section className="py-20 border-t border-primary/10">

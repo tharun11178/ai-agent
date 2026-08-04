@@ -6,14 +6,12 @@ import { ErrorPage } from "@/pages/ErrorPage";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
 import { Navigation } from "./components/Navigation";
 import { Footer } from "./components/Footer";
-import { AnimatedBackground } from "./components/AnimatedBackground";
-import { CursorGlow } from "./components/CursorGlow";
 import { RefreshCw } from "lucide-react";
 
-// Route-based lazy imports for code splitting
+// Lazy-loaded components and routes for instant initial page render & code splitting
+const Home = lazy(() => import("./pages/Home"));
 const About = lazy(() => import("./pages/About"));
 const Events = lazy(() => import("./pages/Events"));
 const Rules = lazy(() => import("./pages/Rules"));
@@ -22,6 +20,8 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Schedule = lazy(() => import("./pages/Schedule"));
 const ControlCenter = lazy(() => import("./pages/ControlCenter"));
 const ProblemStatementPage = lazy(() => import("./pages/ProblemStatementPage"));
+const AnimatedBackground = lazy(() => import("./components/AnimatedBackground").then((m) => ({ default: m.AnimatedBackground })));
+const CursorGlow = lazy(() => import("./components/CursorGlow").then((m) => ({ default: m.CursorGlow })));
 
 function PageFallback() {
   return (
@@ -67,8 +67,10 @@ function App() {
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster />
-          <AnimatedBackground />
-          <CursorGlow />
+          <Suspense fallback={null}>
+            <AnimatedBackground />
+            <CursorGlow />
+          </Suspense>
           <Navigation />
           <main className="relative z-10">
             <Router />
