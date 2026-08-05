@@ -42,7 +42,7 @@ router.delete('/registrations/:id', async (req: Request, res: Response) => {
 // GET Problems (All Draft, Released, and Hidden problems for Admin Management)
 router.get('/problems', async (_req: Request, res: Response) => {
   try {
-    const problems = await dbAll(`SELECT * FROM problems ORDER BY id ASC`);
+    const problems = await dbAll(`SELECT * FROM problems ORDER BY CAST(id AS INTEGER) ASC, id ASC`);
 
     const parseJsonArray = (str: string) => {
       try {
